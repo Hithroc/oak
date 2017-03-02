@@ -60,3 +60,4 @@ executable oak
                       ,spoon
                       ,hashable
                       ,wai-middleware-static
+                      ,directory

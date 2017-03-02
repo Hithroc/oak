@@ -21,6 +21,7 @@ import Oak.Web.Components
 import Oak.Core.Booster
 import Oak.Config
 
+customError :: MonadIO m => Status -> ActionCtxT ctx m ()
 customError s = do
   setStatus s
   text $ T.pack (show $ statusCode s) 
@@ -39,14 +40,14 @@ sessionHook = do
 
 runApp :: Config -> CardDatabase -> IO ()
 runApp cfg db = do
-  let settings = setPort (serverPort cfg)
-               . setHost (fromString $ serverHost cfg)
+  let settings = setPort (cfg_port cfg)
+               . setHost (fromString $ cfg_host cfg)
                $ defaultSettings
   trooms <- atomically $ newTVar (IM.empty)
   troomcnt <- atomically $ newTVar 0
   spockCfg <- defaultSpockCfg (UserSession UUID.nil) PCNoDatabase (GlobalState troomcnt trooms db)
-  app <- spockAsApp (spock (spockCfg { spc_errorHandler = customError }) app)
-  runSettings (settings) (app)
+  spockapp <- spockAsApp (spock (spockCfg { spc_errorHandler = customError }) app)
+  runSettings (settings) (spockapp)
 
 
 app :: SpockM () UserSession GlobalState ()
@@ -65,6 +66,8 @@ app = do
     get ("debug" <//> "status" <//> var) $ \code -> do
       setStatus $ mkStatus code "Unknown Code"
       text "Error"
-    get ("debug" <//> "route" <//> wildcard) $ \wc -> do
+    get ("debug" <//> "route" <//> wildcard) $ \_ -> do
       req <- request
       text $ T.pack $ show req
+    get "version" $ do
+      text $ T.pack showVersion

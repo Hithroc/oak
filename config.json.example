@@ -1,4 +1,3 @@
-{ "card_database": "db.json"
-, "port": 112233
+{ "port": 112233
 , "host": "0.0.0.0"
 }
