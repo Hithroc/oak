@@ -14,10 +14,12 @@ import Network.Wai.Handler.Warp
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import Network.Wai.Middleware.Static
+import Data.String (fromString)
 
 import Oak.Web.Types
 import Oak.Web.Components
 import Oak.Core.Booster
+import Oak.Config
 
 customError s = do
   setStatus s
@@ -35,10 +37,10 @@ sessionHook = do
     nuuid <- liftIO $ nextRandom
     modifySession $ (\x -> x { getUserUUID = nuuid })
 
-runApp :: CardDatabase -> IO ()
-runApp db = do
-  let settings = setPort 42421
-               . setHost "127.0.0.1"
+runApp :: Config -> CardDatabase -> IO ()
+runApp cfg db = do
+  let settings = setPort (serverPort cfg)
+               . setHost (fromString $ serverHost cfg)
                $ defaultSettings
   trooms <- atomically $ newTVar (IM.empty)
   troomcnt <- atomically $ newTVar 0

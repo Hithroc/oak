@@ -20,11 +20,13 @@ executable oak
                        Oak.Core.Booster.Database
                        Oak.Core.Booster.Types
                        Oak.Core.Room
+                       Oak.Config
                        Oak.Web
                        Oak.Web.Components
                        Oak.Web.Components.Room
                        Oak.Web.Types
                        Oak.Web.Utils
+                       Data.Vec
   default-language:    Haskell2010
   ghc-options:         -Wall -threaded -fno-warn-unused-top-binds
   default-extensions:  OverloadedStrings
