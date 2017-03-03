@@ -29,5 +29,5 @@ deployment:
     commands:
       - "scp -q -r -P $SSH_DEPLOY_PORT frontend/dist  $SSH_DEPLOY_HOST:stage/frontend/dist"
       - "scp -q -r -P $SSH_DEPLOY_PORT static  $SSH_DEPLOY_HOST:stage/static"
-      - "scp -q -r -P $SSH_DEPLOY_PORT $(stack path --local-install-root)/bin/oak  $SSH_DEPLOY_HOST:stage/oak"
+      - "scp -q -r -P $SSH_DEPLOY_PORT $(stack path --local-install-root)/bin/oak  $SSH_DEPLOY_HOST:oak-stage"
       - ssh -p $SSH_DEPLOY_PORT oak@hithroc.org 'sh deploy.sh stage'
