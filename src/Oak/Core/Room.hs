@@ -95,7 +95,7 @@ crackBooster db room = if null (roomBoosters room) then return room else do
     givePlayer :: MonadRandom m => BoosterType -> Player -> m Player
     givePlayer s p = do
       b <- generateBooster s db
-      return $ p { playerDraft = playerDraft p ++ (catMaybes b) }
+      return $ p { playerDraft = playerDraft p ++ (catMaybes b), playerPicked = False }
 
 pop :: Int -> [a] -> (Maybe a, [a])
 pop _ [] = (Nothing, [])
