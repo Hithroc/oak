@@ -21,6 +21,7 @@ executable oak
                        Oak.Core.Booster.Types
                        Oak.Core.Room
                        Oak.Config
+                       Oak.Config.TH
                        Oak.Web
                        Oak.Web.Components
                        Oak.Web.Components.Room
@@ -45,6 +46,7 @@ executable oak
                       ,wai
                       ,warp
                       ,Spock
+                      ,Spock-worker
                       ,http-api-data
                       ,reroute
                       ,hvect

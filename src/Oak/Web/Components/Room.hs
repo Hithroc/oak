@@ -16,6 +16,7 @@ import Control.Applicative
 import Control.Monad.Random
 import Network.Wai (rawPathInfo)
 import Data.Monoid
+import Web.Spock.Worker
 
 import Oak.Web.Utils
 import Oak.Web.Types
@@ -77,6 +78,13 @@ roomComponent = do
     eventsR     = roomR <//> "events"
     joinR       = roomR <//> "join"
 
+    errorHandler = ErrorHandlerIO (\_ _ -> return WorkError)
+    workHandler (rid,trooms) = do
+      liftIO . atomically . modifyTVar trooms $ (IM.delete rid)
+      return WorkComplete
+
+  worker <- newWorker $ WorkerDef (WorkerConfig (1000) (WorkerConcurrentBounded 4)) workHandler errorHandler
+
   get createRoomR $ \boosters -> do
     uuid <- getUserUUID <$> readSession
     rid <- nextRoomNumber
@@ -85,6 +93,7 @@ roomComponent = do
       troom <- newTVar . (\x -> x { roomHost = uuid }) $ createRoom boosters
       modifyTVar trooms $ (IM.insert rid troom)
       addPlayerSTM uuid $ troom
+    addWork (WorkIn 3600) (rid,trooms) worker -- Clean the room after an hour
     redirect (renderRoute roomR (toHashid rid))
 
   get roomR $ \(ruid :: T.Text) -> directoryHook $ withRoom ruid $ \_ -> do
