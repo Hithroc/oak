@@ -75,6 +75,7 @@ roomComponent = do
     cardListR   = roomR <//> "cardlist"
     startR      = roomR <//> "start"
     eventsR     = roomR <//> "events"
+    joinR       = roomR <//> "join"
 
   get createRoomR $ \boosters -> do
     uuid <- getUserUUID <$> readSession
@@ -144,10 +145,23 @@ roomComponent = do
     e <- liftIO . atomically $ readTVar troom >>= nextEvent uuid
     text $ T.pack $ show e
 
+  get joinR $ \ruid -> flip (withRoom' ruid) (const $ text "Already joined") $ \(_, troom) -> do
+    uuid <- getUserUUID <$> readSession
+    liftIO . atomically $ do
+      addPlayerSTM uuid $ troom
+      broadcastEventTVar PlayersUpdate troom
+    redirect $ renderRoute roomR ruid
+
 withRoom :: T.Text
          -> ((Int, TVar Room) -> SpockActionCtx ctx conn UserSession GlobalState ())
          -> SpockActionCtx ctx conn UserSession GlobalState ()
-withRoom rhashid action = do
+withRoom rhashid action = withRoom' rhashid (\_ -> file "text/html" "static/join.html") action
+
+withRoom' :: T.Text
+         -> ((Int, TVar Room) -> SpockActionCtx ctx conn UserSession GlobalState ())
+         -> ((Int, TVar Room) -> SpockActionCtx ctx conn UserSession GlobalState ())
+         -> SpockActionCtx ctx conn UserSession GlobalState ()
+withRoom' rhashid failedac action = do
   rooms <- liftIO . atomically . readTVar . stateRooms =<< getState
   case fromHashid rhashid of
     Nothing -> do
@@ -167,10 +181,9 @@ withRoom rhashid action = do
             setStatus forbidden403
             text "The room is closed"
           else do
-            unless isMember . liftIO . atomically $ do
-              addPlayerSTM uuid $ troom
-              broadcastEventTVar PlayersUpdate troom
-            action (rid, troom)
+            if isMember
+            then action (rid, troom)
+            else failedac (rid, troom)
 
 nextRoomNumber :: SpockActionCtx ctx conn sess GlobalState Int
 nextRoomNumber = do
