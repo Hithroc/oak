@@ -24,7 +24,7 @@ test:
     - echo "You pass."
 
 deployment:
-  master:
+  stage:
     branch: master
     commands:
       - "scp -q -r -P $SSH_DEPLOY_PORT frontend/dist  $SSH_DEPLOY_HOST:stage/frontend/dist"
