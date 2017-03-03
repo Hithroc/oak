@@ -1,0 +1,33 @@
+dependencies:
+  cache_directories:
+    - "~/.stack"
+    - "frontend/output"
+    - "frontend/bower_components"
+    - "frontend/.pulp-cache"
+  pre:
+    - curl -sSL https://get.haskellstack.org/ | sh
+    - stack setup
+    - npm install -g purescript pulp bower
+  override:
+    - stack install --only-dependencies --no-terminal
+    - bower install:
+        pwd: frontend
+    - pulp build --src-path fake-src:
+        pwd: frontend
+compile:
+  override:
+    - stack build
+    - mkdir dist; pulp browserify -O > dist/app.js:
+        pwd: frontend
+test:
+  override:
+    - echo "You pass."
+
+deployment:
+  master:
+    branch: master
+    commands:
+      - "scp -q -r -P $SSH_DEPLOY_PORT frontend/dist  $SSH_DEPLOY_HOST:stage/frontend/dist"
+      - "scp -q -r -P $SSH_DEPLOY_PORT static  $SSH_DEPLOY_HOST:stage/static"
+      - "scp -q -r -P $SSH_DEPLOY_PORT $(stack path --local-install-root)/bin/oak  $SSH_DEPLOY_HOST:stage/oak"
+      - ssh -p $SSH_DEPLOY_PORT oak@hithroc.org 'sh deploy.sh stage'
