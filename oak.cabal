@@ -61,3 +61,5 @@ executable oak
                       ,hashable
                       ,wai-middleware-static
                       ,directory
+                      ,template-haskell
+                      ,process

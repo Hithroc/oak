@@ -9,6 +9,7 @@ import qualified Data.Version as V
 import System.Console.GetOpt
 import System.Environment
 import System.Exit
+import Oak.Config.TH
 
 data Config
   = Config
@@ -56,7 +57,7 @@ printHelp = do
   putStrLn $ usageInfo header options
 
 showVersion :: String
-showVersion = "Oak ver. " ++ V.showVersion version
+showVersion = "Oak ver. " ++ V.showVersion version ++ "-" ++ $(getCommitHash)
 
 printVersion :: IO ()
 printVersion = putStrLn showVersion
