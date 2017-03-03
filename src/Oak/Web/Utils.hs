@@ -1,11 +1,13 @@
 module Oak.Web.Utils (toHashid, fromHashid) where
-import Web.Hashids (encode, decode, hashidsSimple)
+import Web.Hashids (encode, decode, hashidsSimple, HashidsContext)
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Control.Spoon (spoon)
 import Data.Maybe (listToMaybe)
 import Control.Monad
 
+
+hashidsContext :: HashidsContext
 hashidsContext = hashidsSimple ""
 
 toHashid :: Int -> Text
