@@ -55,9 +55,9 @@ playerList =
 
     render :: PlayerListState -> H.ComponentHTML PlayerListQuery
     render st =
-      HH.div_ $
-        [  HH.ul_ $ map (\x -> HH.li [HP.class_ (ClassName $ if x.picked then "player-picked" else "player")] [HH.text x.name]) st.players
-        ,  HH.div_
+      HH.div [HP.class_ (ClassName "playerlist-container")] $
+        [  HH.ul [HP.class_ (ClassName "playerlist")] $ map (\x -> HH.li [HP.class_ (ClassName $ if x.picked then "player player-picked" else "player")] [HH.text x.name]) st.players
+        ,  HH.div [HP.class_ (ClassName "name-input")]
           [  HH.input [ HP.value st.inputname, HE.onValueInput (HE.input ChangeInputname)]
           ,  HH.button [HE.onClick (HE.input_ MakeNamechangeRequest)] [HH.text "Change"]
           ]

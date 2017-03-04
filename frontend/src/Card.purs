@@ -68,16 +68,19 @@ card c =
     ponyHeadID = getPonyHeadID c
     render :: CardState -> H.ComponentHTML CardQuery
     render st =
-        HH.img $
-          [ HP.src $ getImageURL st.cid
-          , HP.alt (show st.fallbacked)
-          , HP.class_ (ClassName "card")
-          , HE.onClick (HE.input_ Pick)
-          , HP.attr (AttrName "style") "cursor: pointer"
-          ] 
+        HH.div [ HP.class_ (ClassName "card") ]
+        [
+          HH.img $
+            [ HP.src $ getImageURL st.cid
+            , HP.alt (show st.fallbacked)
+            , HP.class_ (ClassName "card-image")
+            , HE.onClick (HE.input_ Pick)
+            , HP.attr (AttrName "style") "cursor: pointer"
+            ] 
           <> if not st.fallbacked
           then [HE.onError (HE.input_ Fallback)]
           else []
+        ]
 
     eval :: forall m. CardQuery ~> H.ComponentDSL CardState CardQuery CardMessage m
     eval =

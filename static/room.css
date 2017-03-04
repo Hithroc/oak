@@ -1,8 +1,71 @@
 
-.player-picked {
+body {
+  padding: 0px !important;
+  margin: 0px !important;
+}
+
+.mane {
+  height: 100vh;
+}
+
+.bar {
+  width: 20%;
+  float: right;
+}
+
+.content {
+  width: 80%;
+  height: 100vh;
+  float: left;
+  overflow: auto;
+  background-color: #AAAAFF;
+}
+
+.player .picked {
   color: green;
 }
 
 .player {
   color: red;
+}
+
+.card-container {
+  width: 100%;
+  background-color: #AAAAFF;
+}
+
+.card {
+  float: left;
+  width: 15%;
+  padding-top: 15%;
+  margin: 0.5%;
+  border: 1px dotted;
+  position: relative;
+}
+
+.cardlist {
+  background-color: #8888FF;
+}
+
+.card-image {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  padding: 5%;
+  height: 90%;
+  width: 90%;
+  object-fit: contain;
+  position: absolute;
+}
+
+.cardlist-clear {
+  clear: left;
+  display: block;
+}
+  
+.card:hover .card-image {
+  transform: scale(1.5);
+  transition: all 200ms ease-in;
+  z-index: 1;
 }

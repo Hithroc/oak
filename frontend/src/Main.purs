@@ -9,6 +9,7 @@ import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
+import Halogen.HTML.Core(AttrName(..), ClassName(..))
 import Halogen.Data.Prism (type (<\/>), type (\/))
 import Halogen.Component.ChildPath as CP
 import Halogen.Aff as HA
@@ -83,12 +84,17 @@ mane =
   where
     render :: ManeState -> H.ParentHTML ManeQuery ManeChildQuery ManeChildSlot (ManeAff m)
     render st =
-      HH.div_
-        [ HH.slot' CP.cp1 unit playerList unit absurd
-        , HH.button [HE.onClick (HE.input_ StartGame)] [HH.text "Start Game"]
-        , HH.slot' CP.cp2 unit (cardList "Draft" $ Just "pick/") unit (const Nothing)
-        , HH.hr_
-        , HH.slot' CP.cp3 unit (cardList "Pool" Nothing) unit (const Nothing)
+      HH.div [ HP.class_ (ClassName "mane")]
+        [ HH.div [HP.class_ (ClassName "bar")] 
+          [ HH.div [HP.class_ (ClassName "menu")]
+            [HH.button [HE.onClick (HE.input_ StartGame)] [HH.text "Start Game"]
+            ]
+          , HH.slot' CP.cp1 unit playerList unit absurd
+          ]
+        , HH.div [HP.class_ (ClassName "content")]
+          [ HH.slot' CP.cp2 unit (cardList "Draft" $ Just "pick/") unit (const Nothing)
+          , HH.slot' CP.cp3 unit (cardList "Pool" Nothing) unit (const Nothing)
+          ]
         ]
 
     eval :: ManeQuery ~> H.ParentDSL ManeState ManeQuery ManeChildQuery ManeChildSlot Void (ManeAff m)

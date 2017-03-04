@@ -51,10 +51,12 @@ cardList name req =
     render st =
       HH.div
         [ HP.class_ (ClassName "cardlist") 
-        , HP.attr (AttrName "style") $ if st.picked then "filter:grayscale(100%)" else ""
+        , HP.class_ (ClassName $ if st.picked then "cardlist-picked" else "")
         ]
         [ HH.div [HP.class_ (ClassName "cardlist-title")] [ HH.h1_ [HH.text name] ]
-        , HH.div_<<<flip mapWithIndex st.cards $ \i c -> HH.slot (fst c) (C.card $ snd c) unit (listen i)
+        , HH.div [HP.class_ (ClassName "card-container")]
+          <<< (\x -> x <> [HH.span [HP.class_ (ClassName "cardlist-clear")] []])
+          <<< flip mapWithIndex st.cards $ \i c -> HH.slot (fst c) (C.card $ snd c) unit (listen i)
         ]
 
     eval :: forall m. CardListQuery ~> H.ParentDSL CardListState CardListQuery C.CardQuery Int CardListMessage (CardListAff m)
