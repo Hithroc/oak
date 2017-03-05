@@ -65,21 +65,21 @@ body {
 }
 
 .name-input {
-  margin-top: 0.5em;
   display: flex;
   width: 100%;
   flex-direction: row;
-  justify-content: space-between;
+  flex-wrap:wrap;
+  justify-content: center;
   overflow: hidden;
 }
 
 .name-input > input {
+  margin-top: 0.5em;
   border-radius: 1em;
   height: 2em;
   padding-left: 1em;
   border: none;
-  flex-grow: 1;
-  flex-shrink: 1;
+  flex-grow: 2;
 }
 
 button {
@@ -94,7 +94,7 @@ button {
 .name-input > button {
   margin-left: 0.5em;
   min-width: 7em;
-  flex-shrink: 0;
+  margin: 0.5em;
 }
 
 .menu {
