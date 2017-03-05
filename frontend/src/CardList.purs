@@ -26,8 +26,7 @@ import Data.List.Types (toList)
 import Card as C
 
 type CardListState
-  = { counter :: Int
-    , cards :: Array (Tuple Int C.Card)
+  = { cards :: Array (Tuple Int C.Card)
     , picked :: Boolean
     , currentUrl :: String
     }
@@ -72,7 +71,7 @@ cardList name req =
         [ HH.div [HP.class_ (ClassName "cardlist-title")] [ HH.h1_ [HH.text name], HH.a [HP.href st.currentUrl] [HH.text "Ponyhead Deck"] ]
         , HH.div [HP.class_ (ClassName "card-container")]
           <<< (\x -> x <> [HH.span [HP.class_ (ClassName "cardlist-clear")] []])
-          <<< flip mapWithIndex st.cards $ \i c -> HH.slot (fst c) (C.card $ snd c) unit (listen i)
+          <<< flip mapWithIndex st.cards $ \i c -> HH.slot (fst c) (C.card) (snd c) (listen i)
         ]
 
     eval :: forall m. CardListQuery ~> H.ParentDSL CardListState CardListQuery C.CardQuery Int CardListMessage (CardListAff m)
@@ -86,7 +85,7 @@ cardList name req =
             Nothing -> pure unit
           pure next
         NewCards newcards picked next -> do
-          H.modify $ \st -> st { counter = (st.counter + A.length newcards), cards = mapWithIndex (\i -> Tuple (i+st.counter)) newcards, picked = picked }
+          H.modify $ _ { cards = mapWithIndex (\i -> Tuple i) newcards, picked = picked }
           eval $ UpdateLink next
         UpdateLink next -> do
           cids <- H.queryAll $ H.request C.GetCID

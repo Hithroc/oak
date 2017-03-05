@@ -28,12 +28,14 @@ jsonToCard = A.foldJsonObject Nothing $ \jmap -> do
 -- Internal representation of Card
 type CardState =
   { cid :: String
+  , ponyid :: Tuple String String
   , fallbacked :: Boolean
   }
 
 data CardQuery a
   = Pick a
   | Fallback a
+  | Update Card a
   | GetCID (String -> a)
 
 data CardMessage
@@ -46,8 +48,14 @@ getPonyHeadID st = Tuple (getId toUpper) (getId toLower)
     st' =
       if toLower st.set == "pr" && st.number == "213" -- Applejack Farm Foremare id fix. #typonyhead
       then { set: "pr", number: "PF2" }
-      else st { number = replaceAll (Pattern "-") (Replacement "n") st.number }
-    getId f =  toLower st'.set <> f (st'.number)
+      else st
+    -- We want to replace minus after toUpper, because n is always lowercased for negatives in PonyHead
+    -- Everything would work anyway if we replaced '-' to 'n' before uppercasing,
+    -- because the code will just fallback to lowercased version during onError handle,
+    -- but it's better to avoid that.
+    -- #typonyhead
+    getId f =  toLower st'.set <> replaceMinus (f st'.number)
+    replaceMinus = replaceAll (Pattern "-") (Replacement "n")
 
 
 getImageURL :: String -> String
@@ -55,30 +63,27 @@ getImageURL str = base_url <> str <> ".jpg"
   where
     base_url = "http://ponyhead.com/img/cards/"
 
-card :: forall m. Card -> H.Component HH.HTML CardQuery Unit CardMessage m
-card c = 
+card :: forall m. H.Component HH.HTML CardQuery Card CardMessage m
+card = 
   H.lifecycleComponent
-    { initialState : const initialState
+    { initialState : initialState
     , render
     , eval
-    , receiver: const Nothing
+    , receiver: HE.input Update
     , initializer: Nothing
     , finalizer: Nothing
     }
   where
-    initialState :: CardState
-    initialState = { cid: fst $ ponyHeadID, fallbacked: false }
-    ponyHeadID = getPonyHeadID c
+    initialState :: Card -> CardState
+    initialState c = { cid: fst $ getPonyHeadID $ c , ponyid: getPonyHeadID $ c, fallbacked: false }
     render :: CardState -> H.ComponentHTML CardQuery
     render st =
-        HH.div [ HP.class_ (ClassName "card") ]
-        [
-          HH.img $
+        HH.div [ HP.class_ (ClassName "card"), HE.onClick (HE.input_ Pick) ]
+        [ HH.div [ HP.class_ (ClassName "image-hover-hack") ] []
+        , HH.img $
             [ HP.src $ getImageURL st.cid
             , HP.alt (show st.fallbacked)
             , HP.class_ (ClassName "card-image")
-            , HE.onClick (HE.input_ Pick)
-            , HP.attr (AttrName "style") "cursor: pointer"
             ] 
           <> if not st.fallbacked
           then [HE.onError (HE.input_ Fallback)]
@@ -88,11 +93,14 @@ card c =
     eval :: forall m. CardQuery ~> H.ComponentDSL CardState CardQuery CardMessage m
     eval =
       case _ of
+        Update c next -> do
+          H.put $ initialState c
+          pure next
         Pick next -> do
           H.raise Picked
           pure next
         Fallback next -> do
-          H.modify $ _ { cid = snd ponyHeadID, fallbacked = true }
+          H.modify $ \st -> st { cid = snd (st.ponyid), fallbacked = true }
           H.raise Updated
           pure next
         GetCID reply -> do

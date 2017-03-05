@@ -43,11 +43,7 @@ body {
   position: relative;
 }
 
-.cardlist {
-  background-color: #8888FF;
-}
-
-.card-image {
+.card-image, .image-hover-hack {
   top: 0;
   left: 0;
   bottom: 0;
@@ -59,13 +55,25 @@ body {
   position: absolute;
 }
 
+/* I am not sure if that's me being bad at CSS or it's just CSS is awful */
+.image-hover-hack {
+  transform: scale(1.2);
+  z-index: 2;
+  cursor: pointer;
+}
+
+.image-hover-hack:hover + .card-image {
+  transform: scale(2.0);
+  z-index: 1;
+}
+
+
+.cardlist {
+  background-color: #8888FF;
+}
+
 .cardlist-clear {
   clear: left;
   display: block;
 }
   
-.card:hover .card-image {
-  transform: scale(1.5);
-  transition: all 200ms ease-in;
-  z-index: 1;
-}
