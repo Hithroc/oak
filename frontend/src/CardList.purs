@@ -61,7 +61,7 @@ cardList name req =
   }
   where
     initialState :: CardListState
-    initialState = { counter: 0, cards : [], picked: false, currentUrl: "" }
+    initialState = { cards : [], picked: false, currentUrl: "" }
     render :: forall m. CardListState -> H.ParentHTML CardListQuery C.CardQuery Int (CardListAff m)
     render st =
       HH.div
