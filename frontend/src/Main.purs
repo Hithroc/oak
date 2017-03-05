@@ -91,7 +91,7 @@ mane =
         [ HH.div [HP.class_ (ClassName "bar")] 
           [ HH.slot' CP.cp1 unit playerList unit absurd
           , HH.div [HP.class_ (ClassName "menu")]
-            [ HH.button [HE.onClick (HE.input_ StartGame)] [HH.text "Start Game"]
+            [ HH.button [HE.onClick (HE.input_ StartGame)] [HH.text "Start game"]
             , HH.button [HE.onClick (HE.input_ OpenDeckURL)] [HH.text "Export deck"]
             ]
           ]
