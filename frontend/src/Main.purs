@@ -89,11 +89,11 @@ mane =
     render st =
       HH.div [ HP.class_ (ClassName "mane")]
         [ HH.div [HP.class_ (ClassName "bar")] 
-          [ HH.div [HP.class_ (ClassName "menu")]
+          [ HH.slot' CP.cp1 unit playerList unit absurd
+          , HH.div [HP.class_ (ClassName "menu")]
             [ HH.button [HE.onClick (HE.input_ StartGame)] [HH.text "Start Game"]
-            , HH.button [HE.onClick (HE.input_ OpenDeckURL)] [HH.text "Export to Ponyhead"]
+            , HH.button [HE.onClick (HE.input_ OpenDeckURL)] [HH.text "Export deck"]
             ]
-          , HH.slot' CP.cp1 unit playerList unit absurd
           ]
         , HH.div [HP.class_ (ClassName "content")]
           [ HH.slot' CP.cp2 unit (cardList "Draft" $ Just "pick/") unit (const Nothing)

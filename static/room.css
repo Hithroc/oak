@@ -12,6 +12,12 @@ body {
 .bar {
   width: 20%;
   float: right;
+  background-color: #9C82DA;
+  height: 100%;
+}
+
+.playerlist-container {
+  padding: 1em;
 }
 
 .content {
@@ -19,46 +25,126 @@ body {
   height: 100vh;
   float: left;
   overflow: auto;
-  background-color: #AAAAFF;
+  background-color: #6CB2EA;
 }
 
 .player-picked {
-  color: green;
+  list-style-type: disc;
 }
 
-.player:not(.player-picked){
-  color: red;
+.player:not(.player-picked) {
+  list-style-type: circle;
+}
+
+.playerlist {
+  border-radius: 1em;
+  background-color: #B7E0F9;
+  min-height: 10em;
+  overflow:hidden;
+  color: #338FCC;
+  font-size: 1.2em;
+}
+
+.playerlist-header {
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+  background-color: #338FCC;
+  color: #B7E0F9;
+  font-weight: bold;
+  text-align: center;
+  font-size: 1.3em;
+}
+
+.player-list > ul {
+  outline: 3px solid #82DDF4;
+}
+
+.name-input {
+  margin-top: 0.5em;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+.name-input > input {
+  border-radius: 1em;
+  height: 2em;
+  padding-left: 1em;
+  border: none;
+  flex-grow: 2;
+  width: auto;
+}
+
+button {
+  border-radius: 1em;
+  height: 2em;
+  background-color: #FAF99D;
+  text-align: center;
+  border: none;
+  cursor: pointer;
+}
+
+.name-input > button {
+  margin-left: 0.5em;
+  width: 7em;
+}
+
+.menu {
+  margin-top: 2em;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1em;
+}
+
+.menu > * {
+  margin-top: 0.5em;
+}
+
+.cardlist {
+  padding-top: 1em;
+  overflow: hidden;
 }
 
 .cardlist-header {
-  background-color: #8888FF;
+  text-align: center;
+  border: 5px solid;
+  border-color: #92CDF4;
+  background-color: #B8E0F9;
+  border-radius: 3em;
+  margin-left: 2em;
+  margin-right: 2em;
 }
 
 .cardlist-title {
   font-size: 2em;
   font-weight: bold;
+  color: #338FCC;
 }
 
 .cardlist-count {
-  color: gray;
+  color: #338FCC;
 }
 
 .card-container {
-  background-color: #AAAAFF;
   display: inline-flex;
   flex-direction: row;
   flex-wrap: wrap;
   justify-content: center;
   margin-left: auto;
   margin-right: auto;
-  width: auto;
+  width: 100%;
 }
 
 .card {
   width: 13em;
   padding-top: 13em;
   margin: 0.5em;
-  border: 1px dotted;
+  border: 3px solid;
+  border-radius: 0.5em;
+  border-color: #92CDF4;
+  background-color: #D8EEFB;
   position: relative;
 }
 
@@ -76,12 +162,14 @@ body {
   width: 90%;
   object-fit: contain;
   position: absolute;
+  z-index: 1;
+  transition: z-index 300ms linear, transform 300ms ease;
 }
 
 /* I am not sure if that's me being bad at CSS or it's just CSS is awful */
 .image-hover-hack {
   transform: scale(1.2);
-  z-index: 2;
+  z-index: 3;
   cursor: pointer;
 }
 
@@ -90,8 +178,9 @@ body {
 }
 
 .image-hover-hack:hover + .card-image {
+  z-index: 2;
   transform: scale(2.0);
-  z-index: 1;
+  transition: z-index 300ms step-start, transform 300ms ease;
   /*filter: grayscale(0%);*/
 }
 
