@@ -71,7 +71,7 @@ cardList name req =
         [ HH.div [HP.class_ (ClassName "cardlist-title")] [ HH.h1_ [HH.text name], HH.a [HP.href st.currentUrl] [HH.text "Ponyhead Deck"] ]
         , HH.div [HP.class_ (ClassName "card-container")]
           <<< (\x -> x <> [HH.span [HP.class_ (ClassName "cardlist-clear")] []])
-          <<< flip mapWithIndex st.cards $ \i c -> HH.slot (fst c) (C.card) (snd c) (listen i)
+          <<< flip mapWithIndex st.cards $ \i c -> HH.slot (A.length st.cards - i) (C.card) (c) listen
         ]
 
     eval :: forall m. CardListQuery ~> H.ParentDSL CardListState CardListQuery C.CardQuery Int CardListMessage (CardListAff m)
@@ -92,6 +92,6 @@ cardList name req =
           H.modify $ _ { currentUrl = toDeckURL $ M.values $ cids }
           pure next
 
-    listen :: Int -> C.CardMessage -> Maybe (CardListQuery Unit)
-    listen i C.Picked = Just<<<H.action $ PickCard i
-    listen i C.Updated = Just<<<H.action $ UpdateLink
+    listen :: C.CardMessage -> Maybe (CardListQuery Unit)
+    listen (C.Picked i) = Just<<<H.action $ PickCard i
+    listen C.Updated = Just<<<H.action $ UpdateLink

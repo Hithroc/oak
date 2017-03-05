@@ -30,16 +30,17 @@ type CardState =
   { cid :: String
   , ponyid :: Tuple String String
   , fallbacked :: Boolean
+  , pickid :: Int
   }
 
 data CardQuery a
   = Pick a
   | Fallback a
-  | Update Card a
+  | Update (Tuple Int Card) a
   | GetCID (String -> a)
 
 data CardMessage
-  = Picked
+  = Picked Int
   | Updated
 
 getPonyHeadID :: Card -> Tuple String String
@@ -63,7 +64,7 @@ getImageURL str = base_url <> str <> ".jpg"
   where
     base_url = "http://ponyhead.com/img/cards/"
 
-card :: forall m. H.Component HH.HTML CardQuery Card CardMessage m
+card :: forall m. H.Component HH.HTML CardQuery (Tuple Int Card) CardMessage m
 card = 
   H.lifecycleComponent
     { initialState : initialState
@@ -74,8 +75,8 @@ card =
     , finalizer: Nothing
     }
   where
-    initialState :: Card -> CardState
-    initialState c = { cid: fst $ getPonyHeadID $ c , ponyid: getPonyHeadID $ c, fallbacked: false }
+    initialState :: Tuple Int Card -> CardState
+    initialState c = { cid: fst $ getPonyHeadID $ snd c , ponyid: getPonyHeadID $ snd c, fallbacked: false, pickid: fst c }
     render :: CardState -> H.ComponentHTML CardQuery
     render st =
         HH.div [ HP.class_ (ClassName "card"), HE.onClick (HE.input_ Pick) ]
@@ -97,7 +98,8 @@ card =
           H.put $ initialState c
           pure next
         Pick next -> do
-          H.raise Picked
+          st <- H.get
+          H.raise $ Picked st.pickid
           pure next
         Fallback next -> do
           H.modify $ \st -> st { cid = snd (st.ponyid), fallbacked = true }
