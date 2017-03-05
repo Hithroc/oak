@@ -31,6 +31,7 @@ data CardListQuery a
   = PickCard Int a
   | NewCards (Array C.Card) Boolean a
   | UpdateLink a
+  | GetDeckURL (String -> a)
 
 data CardListMessage = CardPicked Int
 
@@ -64,7 +65,7 @@ cardList name req =
         [ HP.class_ (ClassName "cardlist") 
         , HP.class_ (ClassName $ if st.picked then "cardlist-picked" else "")
         ]
-        [ HH.div [HP.class_ (ClassName "cardlist-title")] [ HH.h1_ [HH.text name], HH.a [HP.href st.currentUrl] [HH.text "Ponyhead Deck"] ]
+        [ HH.div [HP.class_ (ClassName "cardlist-header")] [ HH.h1_ [HH.text name] ]
         , HH.div [HP.class_ (ClassName "card-container")]
           <<< (\x -> x <> [HH.span [HP.class_ (ClassName "cardlist-clear")] []])
           <<< flip mapWithIndex st.cards $ \i c -> HH.slot (A.length st.cards - i) (C.card) (c) listen
@@ -87,6 +88,9 @@ cardList name req =
           cids <- H.queryAll $ H.request C.GetCID
           H.modify $ _ { currentUrl = toDeckURL $ M.values $ cids }
           pure next
+        GetDeckURL reply -> do
+          st <- H.get
+          pure $ reply st.currentUrl
 
     listen :: C.CardMessage -> Maybe (CardListQuery Unit)
     listen (C.Picked i) = Just<<<H.action $ PickCard i

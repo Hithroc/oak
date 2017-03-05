@@ -18,13 +18,17 @@ import Network.HTTP.Affjax (AJAX)
 import Data.Argonaut.Core as A
 import Network.HTTP.Affjax as AX
 import Data.StrMap as M
-import Data.Maybe(Maybe(..))
+import Data.Maybe(Maybe(..), maybe)
 import Data.Traversable(sequence)
 import CardList (cardList, CardListQuery(..), CardListMessage(..))
 import Card (Card(..), jsonToCard, card)
 import PlayerList (playerList, PlayerListQuery(..))
 import Data.Const
 import Network.HTTP.StatusCode
+import DOM.HTML.Types(WINDOW)
+import DOM (DOM)
+import DOM.HTML(window)
+import DOM.HTML.Window(open)
 
 
 type ManeState = Unit
@@ -59,7 +63,7 @@ data ManeQuery a
   | ProcessEvent Event a
   | Initialize a
   | StartGame a
-  | SendPick Int a
+  | OpenDeckURL a
 
 -- This operator reminds me of train wagons
 --           8
@@ -69,7 +73,7 @@ data ManeQuery a
 type ManeChildQuery = PlayerListQuery <\/> CardListQuery <\/> CardListQuery <\/> Const Void
 type ManeChildSlot = Unit \/ Unit \/ Unit \/ Void
 
-type ManeAff eff = Aff (ajax :: AX.AJAX, console :: CONSOLE | eff)
+type ManeAff eff = Aff (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW, dom :: DOM | eff)
 mane :: forall m. H.Component HH.HTML ManeQuery ManeState Void (ManeAff m)
 mane =
   H.lifecycleParentComponent
@@ -87,7 +91,7 @@ mane =
         [ HH.div [HP.class_ (ClassName "bar")] 
           [ HH.div [HP.class_ (ClassName "menu")]
             [ HH.button [HE.onClick (HE.input_ StartGame)] [HH.text "Start Game"]
-            , HH.button [HE.onClick (HE.input_ StartGame)] [HH.text "Export to Ponyhead"]
+            , HH.button [HE.onClick (HE.input_ OpenDeckURL)] [HH.text "Export to Ponyhead"]
             ]
           , HH.slot' CP.cp1 unit playerList unit absurd
           ]
@@ -125,13 +129,18 @@ mane =
               H.query' CP.cp3 unit (H.action (NewCards cl.pool false))
               pure unit
       pure next
-    eval (SendPick i next) = pure next
     eval (StartGame next) = do
       (response :: AX.AffjaxResponse Unit) <- H.liftAff $ AX.get ("start")
       pure next
+    eval (OpenDeckURL next) = do
+      deckurl <- H.query' CP.cp3 unit (H.request GetDeckURL)
+      H.liftEff $ do
+        win <- window
+        open (maybe "" id deckurl) "" "" win
+      pure next
 
 
-main :: forall e. Eff (HA.HalogenEffects (ajax :: AJAX, console :: CONSOLE | e)) Unit
+main :: forall e. Eff (HA.HalogenEffects (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW | e)) Unit
 main = HA.runHalogenAff do
   body <- HA.awaitBody
   --runUI (card { set: "cs", number: "F1" }) unit body
