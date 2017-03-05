@@ -2,6 +2,7 @@
 body {
   padding: 0px !important;
   margin: 0px !important;
+  font-family: sans-serif;
 }
 
 .mane {
@@ -21,11 +22,11 @@ body {
   background-color: #AAAAFF;
 }
 
-.player .picked {
+.player-picked {
   color: green;
 }
 
-.player {
+.player:not(.player-picked){
   color: red;
 }
 
@@ -33,22 +34,36 @@ body {
   background-color: #8888FF;
 }
 
+.cardlist-title {
+  font-size: 2em;
+  font-weight: bold;
+}
+
+.cardlist-count {
+  color: gray;
+}
+
 .card-container {
   background-color: #AAAAFF;
   display: inline-flex;
   flex-direction: row;
   flex-wrap: wrap;
+  justify-content: center;
   margin-left: auto;
   margin-right: auto;
   width: auto;
 }
 
 .card {
-  width: 15em;
-  padding-top: 15em;
+  width: 13em;
+  padding-top: 13em;
   margin: 0.5em;
   border: 1px dotted;
   position: relative;
+}
+
+.cardlist-picked .card-image {
+  filter: grayscale(100%);
 }
 
 .card-image, .image-hover-hack {
@@ -70,9 +85,14 @@ body {
   cursor: pointer;
 }
 
+.cardlist-picked .image-hover-hack {
+  cursor: auto;
+}
+
 .image-hover-hack:hover + .card-image {
   transform: scale(2.0);
   z-index: 1;
+  /*filter: grayscale(0%);*/
 }
 
 

@@ -62,10 +62,12 @@ cardList name req =
     render :: forall m. CardListState -> H.ParentHTML CardListQuery C.CardQuery Int (CardListAff m)
     render st =
       HH.div
-        [ HP.class_ (ClassName "cardlist") 
-        , HP.class_ (ClassName $ if st.picked then "cardlist-picked" else "")
+        [ HP.class_ (ClassName $ if st.picked then "cardlist cardlist-picked" else "cardlist")
         ]
-        [ HH.div [HP.class_ (ClassName "cardlist-header")] [ HH.h1_ [HH.text name] ]
+        [ HH.div [HP.class_ (ClassName "cardlist-header")]
+          [ HH.div [HP.class_ (ClassName "cardlist-title")] [HH.text name]
+          , HH.div [HP.class_ (ClassName "cardlist-count")] [HH.text $ "" <> show (A.length st.cards) <> " cards"]
+          ]
         , HH.div [HP.class_ (ClassName "card-container")]
           <<< (\x -> x <> [HH.span [HP.class_ (ClassName "cardlist-clear")] []])
           <<< flip mapWithIndex st.cards $ \i c -> HH.slot (A.length st.cards - i) (C.card) (c) listen
