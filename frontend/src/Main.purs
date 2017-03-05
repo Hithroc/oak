@@ -87,7 +87,8 @@ mane =
       HH.div [ HP.class_ (ClassName "mane")]
         [ HH.div [HP.class_ (ClassName "bar")] 
           [ HH.div [HP.class_ (ClassName "menu")]
-            [HH.button [HE.onClick (HE.input_ StartGame)] [HH.text "Start Game"]
+            [ HH.button [HE.onClick (HE.input_ StartGame)] [HH.text "Start Game"]
+            , HH.button [HE.onClick (HE.input_ StartGame)] [HH.text "Export to Ponyhead"]
             ]
           , HH.slot' CP.cp1 unit playerList unit absurd
           ]

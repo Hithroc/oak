@@ -34,8 +34,11 @@ type CardState =
 data CardQuery a
   = Pick a
   | Fallback a
+  | GetCID (String -> a)
 
-data CardMessage = Picked
+data CardMessage
+  = Picked
+  | Updated
 
 getPonyHeadID :: Card -> Tuple String String
 getPonyHeadID st = Tuple (getId toUpper) (getId toLower)
@@ -90,4 +93,8 @@ card c =
           pure next
         Fallback next -> do
           H.modify $ _ { cid = snd ponyHeadID, fallbacked = true }
+          H.raise Updated
           pure next
+        GetCID reply -> do
+          st <- H.get
+          pure (reply st.cid)
