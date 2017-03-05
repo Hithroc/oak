@@ -55,6 +55,8 @@ app = do
   middleware . staticPolicy $ only
     [("app.js", "frontend/dist/app.js")
     ,("room.css", "static/room.css")
+    ,("fonts/Equestria.otf", "static/fonts/Equestria.otf")
+    ,("fonts/Equestria Bold.otf", "static/fonts/Equestria Bold.otf")
     ]
   prehook sessionHook $ do
     get root $ file "text/html" "static/index.html"
