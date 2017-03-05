@@ -24,7 +24,6 @@ import CardList (cardList, CardListQuery(..), CardListMessage(..))
 import Card (Card(..), jsonToCard, card)
 import PlayerList (playerList, PlayerListQuery(..))
 import Data.Const
-import Partial (crash)
 import Network.HTTP.StatusCode
 
 

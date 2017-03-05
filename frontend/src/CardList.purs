@@ -8,7 +8,6 @@ import Halogen.HTML as HH
 import Halogen.HTML.Core(AttrName(..), ClassName(..))
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
-import Data.String
 import Data.Maybe
 import Data.Tuple
 import Data.Array (mapWithIndex)
@@ -17,11 +16,8 @@ import Data.Foldable
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Aff.Console (log)
 import Data.Map as M
-import Data.List (List, group', head)
-import Data.List as L
+import Data.List (List, group')
 import Data.List.NonEmpty as NE
-import Data.List.Types (toList)
-
 
 import Card as C
 

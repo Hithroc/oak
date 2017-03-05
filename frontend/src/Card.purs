@@ -1,8 +1,6 @@
 module Card where
 
 import Prelude
-import Control.Monad.Aff (Aff)
-import Network.HTTP.Affjax as AX
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Core(AttrName(..), ClassName(..))
@@ -91,7 +89,7 @@ card =
           else []
         ]
 
-    eval :: forall m. CardQuery ~> H.ComponentDSL CardState CardQuery CardMessage m
+    eval :: CardQuery ~> H.ComponentDSL CardState CardQuery CardMessage m
     eval =
       case _ of
         Update c next -> do
