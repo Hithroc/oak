@@ -29,16 +29,24 @@ body {
   color: red;
 }
 
+.cardlist-header {
+  background-color: #8888FF;
+}
+
 .card-container {
-  width: 100%;
   background-color: #AAAAFF;
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin-left: auto;
+  margin-right: auto;
+  width: auto;
 }
 
 .card {
-  float: left;
-  width: 15%;
-  padding-top: 15%;
-  margin: 0.5%;
+  width: 15em;
+  padding-top: 15em;
+  margin: 0.5em;
   border: 1px dotted;
   position: relative;
 }
@@ -67,10 +75,6 @@ body {
   z-index: 1;
 }
 
-
-.cardlist {
-  background-color: #8888FF;
-}
 
 .cardlist-clear {
   clear: left;
