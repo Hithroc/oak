@@ -57,7 +57,7 @@ playerList =
     render st =
       HH.div [HP.class_ (ClassName "playerlist-container")] $
         [ HH.div [HP.class_ (ClassName "playerlist")]
-          [ HH.div [HP.class_ (ClassName "playerlist-header")] [ HH.text "User list" ]
+          [ HH.div [HP.class_ (ClassName "playerlist-header")] [ HH.text "Player list" ]
           , HH.ul_ $ map (\x -> HH.li [HP.class_ (ClassName $ if x.picked then "player player-picked" else "player")] [HH.text x.name]) st.players
           ]
         , HH.div [HP.class_ (ClassName "name-input")]

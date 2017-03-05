@@ -18,14 +18,15 @@ body {
 }
 
 .mane {
+  display: flex;
+  align-items: stretch;
 }
 
 .bar {
   width: 20%;
-  height: 100%;
-  min-height: 100vh;
-  float: right;
+  min-width: 15em;
   background-color: #9C82DA;
+  order: 2;
 }
 
 .playerlist-container {
@@ -46,7 +47,7 @@ body {
   height: 15em;
   color: #338FCC;
   font-size: 1.2em;
-  overflow-y: hidden
+  overflow: hidden;
 }
 
 .playerlist-header {
@@ -59,18 +60,12 @@ body {
   font-family: 'Equestria';
 }
 
-.player-list > ul {
-  outline: 3px solid #82DDF4;
-  overflow-x: scroll;
-}
-
 .name-input {
   display: flex;
   width: 100%;
   flex-direction: row;
   flex-wrap:wrap;
   justify-content: center;
-  overflow: hidden;
 }
 
 .name-input > input {
@@ -80,6 +75,8 @@ body {
   padding-left: 1em;
   border: none;
   flex-grow: 2;
+  font-size: 1.0em;
+  width: 0; /* I have no idea why, but this fixes some issues */
 }
 
 button {
@@ -89,6 +86,8 @@ button {
   text-align: center;
   border: none;
   cursor: pointer;
+  font-size: 1.0em;
+  font-family: 'Equestria';
 }
 
 .name-input > button {
@@ -107,17 +106,16 @@ button {
 
 .menu > * {
   margin-top: 0.5em;
-  font-family: 'Equestria';
-  font-size: 2em;
+  font-size: 1.8em;
 }
 
 .content {
-  width: 80%;
-  float: left;
+  order: 1;
   height: 100%;
   min-height: 100vh;
   overflow: auto;
   background-color: #6CB2EA;
+  flex-grow:2;
 }
 
 .content-container {
