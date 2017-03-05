@@ -96,8 +96,10 @@ mane =
             ]
           ]
         , HH.div [HP.class_ (ClassName "content")]
-          [ HH.slot' CP.cp2 unit (cardList "Draft" $ Just "pick/") unit (const Nothing)
-          , HH.slot' CP.cp3 unit (cardList "Pool" Nothing) unit (const Nothing)
+          [ HH.div [ HP.class_ (ClassName "content-container") ]
+            [ HH.slot' CP.cp2 unit (cardList "Draft" $ Just "pick/") unit (const Nothing)
+            , HH.slot' CP.cp3 unit (cardList "Pool" Nothing) unit (const Nothing)
+            ]
           ]
         ]
 

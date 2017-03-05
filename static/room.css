@@ -20,14 +20,6 @@ body {
   padding: 1em;
 }
 
-.content {
-  width: 80%;
-  height: 100vh;
-  float: left;
-  overflow: auto;
-  background-color: #6CB2EA;
-}
-
 .player-picked {
   list-style-type: disc;
 }
@@ -102,9 +94,20 @@ button {
   margin-top: 0.5em;
 }
 
+.content {
+  width: 80%;
+  height: 100vh;
+  float: left;
+  overflow: auto;
+  background-color: #6CB2EA;
+}
+
+.content-container {
+  overflow: hidden;
+}
+
 .cardlist {
   padding-top: 1em;
-  overflow: hidden;
 }
 
 .cardlist-header {
@@ -163,7 +166,7 @@ button {
   object-fit: contain;
   position: absolute;
   z-index: 1;
-  transition: z-index 300ms linear, transform 300ms ease;
+  transition: z-index 50ms step-end, transform 300ms ease;
 }
 
 /* I am not sure if that's me being bad at CSS or it's just CSS is awful */
