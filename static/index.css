@@ -96,6 +96,7 @@ a, a:visited {
 
 .create-room-block > select {
   text-align: center;
+  text-align-last: center;
   font-size: 1.5em;
   appearance: none;
   -webkit-appearance: none;
