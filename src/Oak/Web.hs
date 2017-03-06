@@ -56,6 +56,8 @@ app = do
   middleware . staticPolicy $ only
     [("app.js", "frontend/dist/app.js")
     ,("room.css", "static/room.css")
+    ,("home.js", "frontend/dist/home.js")
+    ,("index.css", "static/index.css")
     ,("fonts/Equestria.otf", "static/fonts/Equestria.otf")
     ,("fonts/Equestria Bold.otf", "static/fonts/Equestria Bold.otf")
     ]

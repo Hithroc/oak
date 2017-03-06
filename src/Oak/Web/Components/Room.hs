@@ -17,7 +17,6 @@ import Control.Monad.Random
 import Network.Wai (rawPathInfo)
 import Data.Monoid
 import Web.Spock.Worker
-import Control.Concurrent
 import Data.UUID.V4
 
 import Oak.Web.Utils
@@ -88,6 +87,7 @@ roomComponent = do
   worker <- newWorker $ WorkerDef (WorkerConfig (1000) (WorkerConcurrentBounded 4)) workHandler errorHandler
 
   get createRoomR $ \boosters -> do
+    liftIO . putStrLn $ "createroom: " ++ show boosters
     uuid <- getUserUUID <$> readSession
     rid <- nextRoomNumber
     trooms <- stateRooms <$> getState
