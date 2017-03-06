@@ -29,6 +29,8 @@ import DOM.HTML.Window(open)
 import BoosterSelector
 import Data.Array (mapWithIndex, replicate)
 import Data.Foldable (intercalate)
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.Eff.Exception (throwException, error)
 
 
 type ManeState
@@ -54,24 +56,14 @@ mane =
   where
     render :: ManeState -> H.ParentHTML ManeQuery BoosterSelectorQuery Int (ManeAff m)
     render st =
-      HH.div [ HP.class_ (ClassName "mane") ] $
-      [ HH.div [HP.class_ (ClassName "mane-header")] [ HH.div_ [HH.text "MANE HEADER", HH.br_, HH.text "(logo or smth)"] ]
-      , HH.div [HP.class_ (ClassName "mane-element")]
-        [ HH.div [HP.class_ (ClassName "element-content")] $
-          [ HH.div [HP.class_ (ClassName "create-room-block")] $
-            [ HH.button [ HE.onClick (HE.input_ StartGame) ] [ HH.text "Create Room" ]
-            , HH.div [HP.class_ (ClassName "booster-buttons")]
-              [ HH.button [ HP.disabled $ st.boosterAmount >= 8, HE.onClick (HE.input_ AddBooster) ] [ HH.text "Add pack" ]
-              , HH.button [ HP.disabled $ st.boosterAmount <= 1, HE.onClick (HE.input_ RemoveBooster) ] [ HH.text "Remove pack" ]
-              ]
-            ]
-            <> mapWithIndex (\i x -> HH.slot i x unit absurd) (replicate st.boosterAmount boosterSelector)
-          ]
-        , HH.div [HP.class_ (ClassName "element-header")] [ HH.text "About" ]
-        , HH.div [HP.class_ (ClassName "element-content")] [ HH.text "..." ]
+      HH.div [ HP.class_ (ClassName "create-room-block")] $
+      [ HH.button [ HE.onClick (HE.input_ StartGame) ] [ HH.text "Create Room" ]
+      , HH.div [HP.class_ (ClassName "booster-buttons")]
+        [ HH.button [ HP.disabled $ st.boosterAmount >= 8, HE.onClick (HE.input_ AddBooster) ] [ HH.text "Add pack" ]
+        , HH.button [ HP.disabled $ st.boosterAmount <= 1, HE.onClick (HE.input_ RemoveBooster) ] [ HH.text "Remove pack" ]
         ]
-      , HH.div [HP.class_ (ClassName "mane-footer")] [ HH.text "Copyright 2017, Hithroc Mehatoko" ]
       ]
+      <> mapWithIndex (\i x -> HH.slot i x unit absurd) (replicate st.boosterAmount boosterSelector)
 
     eval :: ManeQuery ~> H.ParentDSL ManeState ManeQuery BoosterSelectorQuery Slot Void (ManeAff m)
     eval (AddBooster next) = do
@@ -89,11 +81,11 @@ mane =
       let packstr = intercalate ","<<<map setToLetters<<<M.values $ packs
       H.liftEff $ do
         win <- window
-        open ("room/create/" <> packstr) "" "" win
+        open ("room/create/" <> packstr) "_self" "" win
       pure next
 
 main :: forall e. Eff (HA.HalogenEffects (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW | e)) Unit
 main = HA.runHalogenAff do
-  body <- HA.awaitBody
-  --runUI (card { set: "cs", number: "F1" }) unit body
-  runUI mane unit body
+  HA.awaitLoad
+  el <- HA.selectElement "#app"
+  maybe (throwError (error "Could not find createroom")) (runUI mane unit) el

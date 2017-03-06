@@ -58,8 +58,7 @@ app = do
     ,("room.css", "static/room.css")
     ,("home.js", "frontend/dist/home.js")
     ,("index.css", "static/index.css")
-    ,("fonts/Equestria.otf", "static/fonts/Equestria.otf")
-    ,("fonts/Equestria Bold.otf", "static/fonts/Equestria Bold.otf")
+    ,("about.html", "static/about.html")
     ]
   prehook sessionHook $ do
     get root $ file "text/html" "static/index.html"

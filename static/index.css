@@ -24,6 +24,10 @@ select {
   color: #338FCC;
 }
 
+a, a:visited {
+  color: #23628C;
+}
+
 .mane {
   display: flex;
   flex-direction: column;
@@ -63,15 +67,14 @@ select {
 
 .element-header {
   text-align: center;
-  margin-top: 1em;
   font-size: 3em;
 }
 
 .element-content {
-  margin-top: 1em;
   padding: 2em;
   padding-left: 6em;
   padding-right: 6em;
+  color: #23628C;
 }
 
 .create-room-block {
