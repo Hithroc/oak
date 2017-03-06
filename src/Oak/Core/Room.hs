@@ -1,5 +1,6 @@
 module Oak.Core.Room where
 import Data.UUID (UUID, nil)
+import Data.UUID.V4
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -22,16 +23,18 @@ data Player
   , playerPool :: [Card]
   , playerPicked :: Bool
   , playerEvents :: TQueue Event
+  , playerEventMVar :: TMVar UUID
   }
 
-defaultPlayer :: TQueue Event -> Player
-defaultPlayer queue
+defaultPlayer :: TQueue Event -> TMVar UUID -> Player
+defaultPlayer queue mvar
   = Player
   { playerName = "Trixie Lulamoon"
   , playerDraft = []
   , playerPool = []
   , playerPicked = False
   , playerEvents = queue
+  , playerEventMVar = mvar
   }
 
 data Room
@@ -51,20 +54,20 @@ createRoom btype
   , roomHost = nil
   }
 
-addPlayer :: UUID -> TQueue Event -> Room -> Room
-addPlayer uuid queue room = room { roomPlayers = M.insert uuid (defaultPlayer queue) (roomPlayers room) }
+addPlayer :: UUID -> TQueue Event -> TMVar UUID -> Room -> Room
+addPlayer uuid queue tmvar room = room { roomPlayers = M.insert uuid (defaultPlayer queue tmvar) (roomPlayers room) }
 
 addPlayerSTM :: UUID -> TVar Room -> STM ()
 addPlayerSTM uuid room = do
   queue <- newTQueue
-  modifyTVar room (addPlayer uuid queue)
+  mvar <- newEmptyTMVar
+  modifyTVar room (addPlayer uuid queue mvar)
 
 addPlayerIO :: UUID -> TVar Room -> IO ()
 addPlayerIO uuid = atomically . addPlayerSTM uuid
 
 modifyPlayer :: UUID -> (Player -> Player) -> Room -> Room
 modifyPlayer uuid f room = room { roomPlayers = M.adjust f uuid (roomPlayers room) }
-
 
 broadcastEvent :: Event -> Room -> STM ()
 broadcastEvent e
@@ -78,19 +81,29 @@ broadcastEventTVar e troom = do
   room <- readTVar troom
   broadcastEvent e room
 
-nextEvent :: UUID -> Room -> STM Event
-nextEvent uuid room = readTQueue (playerEvents $ (roomPlayers room) M.! uuid )
-
--- TODO: Fix TVar and non-TVar inconistensies
-tryPeekEvent :: UUID -> TVar Room -> STM (Maybe Event)
-tryPeekEvent uuid troom = do
-  room <- readTVar troom
-  tryPeekTQueue (playerEvents $ (roomPlayers room) M.! uuid )
-
-unGetEvent :: Event -> UUID -> TVar Room -> STM ()
-unGetEvent e uuid troom = do
-  room <- readTVar troom
-  unGetTQueue (playerEvents $ (roomPlayers room) M.! uuid) e
+nextEvent :: UUID -> TVar Room -> IO (Maybe Event)
+nextEvent uuid troom = do
+  myuid <- nextRandom
+  room <- atomically $ readTVar troom
+  let pl = (roomPlayers room) M.! uuid -- TODO: Get rid of M.!
+      tmvar = playerEventMVar pl
+      tq = playerEvents pl
+  atomically $ do
+    em <- isEmptyTMVar tmvar
+    if em
+    then putTMVar tmvar myuid
+    else void $ swapTMVar tmvar myuid
+  atomically $ do
+    e <- readTQueue $ tq
+    mholduid <- tryReadTMVar tmvar
+    case mholduid of
+      Just holduid -> do
+        if holduid == myuid
+        then return $ Just e
+        else do
+          unGetTQueue (playerEvents pl) e
+          return Nothing
+      Nothing -> return $ Just e
 
 sendEvent :: Event -> UUID -> TVar Room -> STM ()
 sendEvent e uuid = sendEvent' e uuid <=< readTVar
