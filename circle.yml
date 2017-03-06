@@ -18,6 +18,7 @@ compile:
   override:
     - stack build
     - mkdir dist; pulp browserify -O > dist/app.js:
+    - mkdir dist; pulp browserify --src-path homesrc -O > dist/home.js:
         pwd: frontend
 test:
   override:
