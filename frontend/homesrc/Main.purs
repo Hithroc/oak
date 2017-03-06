@@ -55,12 +55,22 @@ mane =
     render :: ManeState -> H.ParentHTML ManeQuery BoosterSelectorQuery Int (ManeAff m)
     render st =
       HH.div [ HP.class_ (ClassName "mane") ] $
-      mapWithIndex (\i x -> HH.slot i x unit absurd) (replicate st.boosterAmount boosterSelector) <>
-      [ HH.div [HP.class_ (ClassName "booster-buttons")]
-        [ HH.button [ HP.disabled $ st.boosterAmount >= 8, HE.onClick (HE.input_ AddBooster) ] [ HH.text "+" ]
-        , HH.button [ HP.disabled $ st.boosterAmount <= 1, HE.onClick (HE.input_ RemoveBooster) ] [ HH.text "-" ]
+      [ HH.div [HP.class_ (ClassName "mane-header")] [ HH.div_ [HH.text "MANE HEADER", HH.br_, HH.text "(logo or smth)"] ]
+      , HH.div [HP.class_ (ClassName "mane-element")]
+        [ HH.div [HP.class_ (ClassName "element-content")] $
+          [ HH.div [HP.class_ (ClassName "create-room-block")] $
+            [ HH.button [ HE.onClick (HE.input_ StartGame) ] [ HH.text "Create Room" ]
+            , HH.div [HP.class_ (ClassName "booster-buttons")]
+              [ HH.button [ HP.disabled $ st.boosterAmount >= 8, HE.onClick (HE.input_ AddBooster) ] [ HH.text "Add pack" ]
+              , HH.button [ HP.disabled $ st.boosterAmount <= 1, HE.onClick (HE.input_ RemoveBooster) ] [ HH.text "Remove pack" ]
+              ]
+            ]
+            <> mapWithIndex (\i x -> HH.slot i x unit absurd) (replicate st.boosterAmount boosterSelector)
+          ]
+        , HH.div [HP.class_ (ClassName "element-header")] [ HH.text "About" ]
+        , HH.div [HP.class_ (ClassName "element-content")] [ HH.text "..." ]
         ]
-      , HH.button [ HE.onClick (HE.input_ StartGame) ] [ HH.text "Create Room" ]
+      , HH.div [HP.class_ (ClassName "mane-footer")] [ HH.text "Copyright 2017, Hithroc Mehatoko" ]
       ]
 
     eval :: ManeQuery ~> H.ParentDSL ManeState ManeQuery BoosterSelectorQuery Slot Void (ManeAff m)
