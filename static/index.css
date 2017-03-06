@@ -50,12 +50,20 @@ a, a:visited {
   border-radius: 3em;
 }
 
+.mane-header {
+  padding: 1em;
+}
+
 .mane-footer {
   padding: 1em;
 }
 
-.mane-header > div {
-  font-size: 5em;
+.prim-header {
+  font-size: 4em;
+}
+
+.sub-header {
+  font-size: 2em;
 }
 
 .mane-element {
