@@ -45,7 +45,8 @@ runApp cfg db = do
                $ defaultSettings
   trooms <- atomically $ newTVar (IM.empty)
   troomcnt <- atomically $ newTVar 0
-  spockCfg <- defaultSpockCfg (UserSession UUID.nil) PCNoDatabase (GlobalState troomcnt trooms db)
+  eventvar <- newEmptyTMVarIO
+  spockCfg <- defaultSpockCfg (UserSession UUID.nil) PCNoDatabase (GlobalState troomcnt trooms db eventvar)
   spockapp <- spockAsApp (spock (spockCfg { spc_errorHandler = customError }) app)
   runSettings (settings) (spockapp)
 

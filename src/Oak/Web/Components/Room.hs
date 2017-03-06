@@ -17,6 +17,8 @@ import Control.Monad.Random
 import Network.Wai (rawPathInfo)
 import Data.Monoid
 import Web.Spock.Worker
+import Control.Concurrent
+import Data.UUID.V4
 
 import Oak.Web.Utils
 import Oak.Web.Types
@@ -151,8 +153,29 @@ roomComponent = do
 
   get eventsR $ \ruid -> withRoom ruid $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
-    e <- liftIO . atomically $ readTVar troom >>= nextEvent uuid
-    text $ T.pack $ show e
+    tmvar <- eventsMVar <$> getState
+    myuid <- liftIO $ nextRandom
+    liftIO . atomically $ do
+      em <- isEmptyTMVar tmvar
+      if em
+      then putTMVar tmvar myuid
+      else void $ swapTMVar tmvar myuid
+    me <- liftIO . atomically $ do
+      e <- readTVar troom >>= nextEvent uuid
+      mholduid <- tryReadTMVar tmvar
+      case mholduid of
+        Just holduid -> do
+          if holduid == myuid
+          then return $ Just e
+          else do
+            unGetEvent e uuid troom
+            return Nothing
+        Nothing -> return $ Just e
+    let
+      terminated = do
+        setStatus requestTimeout408
+        text "Terminated"
+    maybe terminated (text . T.pack . show) me
 
   get joinR $ \ruid -> flip (withRoom' ruid) (const $ text "Already joined") $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession

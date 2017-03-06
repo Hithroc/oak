@@ -12,6 +12,7 @@ import Oak.Core.Booster
 data Event
   = PlayersUpdate
   | CardListUpdate
+  | Terminate UUID -- Terminate all other event listeners
   deriving Show
 
 data Player
@@ -79,6 +80,17 @@ broadcastEventTVar e troom = do
 
 nextEvent :: UUID -> Room -> STM Event
 nextEvent uuid room = readTQueue (playerEvents $ (roomPlayers room) M.! uuid )
+
+-- TODO: Fix TVar and non-TVar inconistensies
+tryPeekEvent :: UUID -> TVar Room -> STM (Maybe Event)
+tryPeekEvent uuid troom = do
+  room <- readTVar troom
+  tryPeekTQueue (playerEvents $ (roomPlayers room) M.! uuid )
+
+unGetEvent :: Event -> UUID -> TVar Room -> STM ()
+unGetEvent e uuid troom = do
+  room <- readTVar troom
+  unGetTQueue (playerEvents $ (roomPlayers room) M.! uuid) e
 
 sendEvent :: Event -> UUID -> TVar Room -> STM ()
 sendEvent e uuid = sendEvent' e uuid <=< readTVar

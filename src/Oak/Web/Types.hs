@@ -1,7 +1,7 @@
 module Oak.Web.Types where
 
 import qualified Data.IntMap as IM
-import Control.Concurrent.STM (TVar)
+import Control.Concurrent.STM (TVar, TMVar)
 import Data.UUID (UUID)
 
 import Oak.Core.Room
@@ -14,6 +14,7 @@ data GlobalState
   { roomCounter :: TVar Int
   , stateRooms :: Rooms
   , cardDb :: CardDatabase
+  , eventsMVar :: TMVar UUID
   }
 data UserSession
   = UserSession
