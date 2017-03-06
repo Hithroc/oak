@@ -86,6 +86,7 @@ roomComponent = do
   worker <- newWorker $ WorkerDef (WorkerConfig (1000) (WorkerConcurrentBounded 4)) workHandler errorHandler
 
   get createRoomR $ \boosters -> do
+    liftIO . putStrLn $ "createroom: " ++ show boosters
     uuid <- getUserUUID <$> readSession
     rid <- nextRoomNumber
     trooms <- stateRooms <$> getState
