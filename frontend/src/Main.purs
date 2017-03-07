@@ -137,7 +137,8 @@ mane =
           log $ "onmessage: Received '" <> received <> "'"
           putVar avar received
         pure unit
-      H.liftEff $ socket.onclose $= \event -> alert' $ "Connection with the server was lost"
+      H.liftEff $ socket.onclose $= \event -> alert' $ "Connection was closed by the server"
+      H.liftEff $ socket.onerror $= \event -> alert' $ "Connection with the server was lost"
       forever $ do
         e <- H.liftAff $ takeVar avar
         case readEvent e of
