@@ -24,11 +24,13 @@ import CardList (cardList, CardListQuery(..), CardListMessage(..))
 import Card (Card(..), jsonToCard, card)
 import PlayerList (playerList, PlayerListQuery(..))
 import Data.Const
-import Network.HTTP.StatusCode
-import DOM.HTML.Types(WINDOW)
+import Network.HTTP.StatusCode(StatusCode(..))
+import DOM.HTML.Types(WINDOW, ALERT)
 import DOM (DOM)
 import DOM.HTML(window)
-import DOM.HTML.Window(open)
+import DOM.HTML.Window(open, alert)
+import Control.Monad.Aff.AVar (AVAR)
+import Control.Monad.Eff.Ref (REF)
 
 
 type ManeState = Unit
@@ -73,7 +75,9 @@ data ManeQuery a
 type ManeChildQuery = PlayerListQuery <\/> CardListQuery <\/> CardListQuery <\/> Const Void
 type ManeChildSlot = Unit \/ Unit \/ Unit \/ Void
 
-type ManeAff eff = Aff (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW, dom :: DOM | eff)
+type Effects e = (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW, alert :: ALERT| e)
+type Effects2 e = Effects (dom :: DOM, ref :: REF, avar :: AVAR | e)
+type ManeAff eff = Aff (Effects2 eff)
 mane :: forall m. H.Component HH.HTML ManeQuery ManeState Void (ManeAff m)
 mane =
   H.lifecycleParentComponent
@@ -109,14 +113,25 @@ mane =
      >=> eval<<<ProcessEvent CardListUpdate
      >=> eval<<<EventLoop $ next
     eval (EventLoop next) = do
+      win <- H.liftEff $ window
+      let
+        alert' = flip alert win
       response <- H.liftAff $ AX.get "events"
-      if response.status /= (StatusCode 200)
-        then pure next
-        else do
+      let
+        ok = do
           next' <- case readEvent response.response of
-            Nothing -> pure next
+            Nothing -> do
+              H.liftEff $ alert' "Failed to read response from the server!"
+              pure next
             Just e -> eval (ProcessEvent e next)
           eval (EventLoop next')
+
+      case response.status of
+        StatusCode 200 -> ok
+        StatusCode 502 -> eval (EventLoop next)
+        StatusCode x -> do
+          H.liftEff<<<alert' $ "Connection to the server is lost with code: " <> show x <> " (" <> show response.response <> ")\nTry to refresh the page."
+          pure next
     eval (ProcessEvent event next) = do
       case event of
         PlayersUpdate -> do
@@ -142,7 +157,7 @@ mane =
       pure next
 
 
-main :: forall e. Eff (HA.HalogenEffects (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW | e)) Unit
+main :: forall e. Eff (HA.HalogenEffects (Effects e)) Unit
 main = HA.runHalogenAff do
   body <- HA.awaitBody
   --runUI (card { set: "cs", number: "F1" }) unit body
