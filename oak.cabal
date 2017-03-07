@@ -65,3 +65,5 @@ executable oak
                       ,directory
                       ,template-haskell
                       ,process
+                      ,wai-websockets
+                      ,websockets

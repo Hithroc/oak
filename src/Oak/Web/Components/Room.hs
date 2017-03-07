@@ -17,6 +17,9 @@ import Control.Monad.Random
 import Network.Wai (rawPathInfo)
 import Data.Monoid
 import Web.Spock.Worker
+import Network.Wai.Handler.WebSockets
+import Network.Wai
+import Network.WebSockets
 
 import Oak.Web.Utils
 import Oak.Web.Types
@@ -152,12 +155,16 @@ roomComponent = do
 
   get eventsR $ \ruid -> withRoom ruid $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
-    me <- liftIO $ nextEvent uuid troom
     let
-      terminated = do
-        setStatus requestTimeout408
-        text "Terminated"
-    maybe terminated (text . T.pack . show) me
+      wsHandler conn = do
+        print uuid
+        me <- nextEvent uuid troom
+        flip (maybe (sendClose conn ("Another connection was opened" :: T.Text))) me $ \e -> do
+          sendTextData conn . T.pack . show $ e
+          wsHandler conn
+      wsApp = wsHandler <=< acceptRequest
+      backupApp _ respond = respond $ responseLBS status400 [] "Not a WebSocket request"
+    respondApp $ websocketsOr defaultConnectionOptions wsApp backupApp
 
   get joinR $ \ruid -> flip (withRoom' ruid) (const $ text "Already joined") $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
