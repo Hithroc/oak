@@ -16,6 +16,12 @@ data Event
   | Terminate UUID -- Terminate all other event listeners
   deriving Show
 
+data Direction = DLeft | DRight
+
+changeDirection :: Direction -> Direction
+changeDirection DLeft = DRight
+changeDirection DRight = DLeft
+
 data Player
   = Player
   { playerName :: Text
@@ -43,6 +49,7 @@ data Room
   , roomBoosters :: [BoosterType]
   , roomClosed :: Bool 
   , roomHost :: UUID
+  , roomDirection :: Direction
   }
 
 createRoom :: [BoosterType] -> Room
@@ -52,6 +59,7 @@ createRoom btype
   , roomBoosters = btype
   , roomClosed = False
   , roomHost = nil
+  , roomDirection = DLeft
   }
 
 addPlayer :: UUID -> TQueue Event -> TMVar UUID -> Room -> Room
@@ -115,7 +123,7 @@ sendEvent' e uuid room = maybe (return ()) (flip writeTQueue e) tq
 crackBooster :: MonadRandom m => CardDatabase -> Room -> m Room
 crackBooster db room = if null (roomBoosters room) then return room else do
   pl' <- sequence $ M.map (givePlayer (head . roomBoosters $ room)) (roomPlayers room)
-  return $ room { roomPlayers = pl', roomBoosters = tail (roomBoosters room) }
+  return $ room { roomPlayers = pl', roomBoosters = tail (roomBoosters room), roomDirection = changeDirection (roomDirection room) }
   where
     givePlayer :: MonadRandom m => BoosterType -> Player -> m Player
     givePlayer s p = do
@@ -135,13 +143,15 @@ transferCard uuid index room = modifyPlayer uuid (\p -> if playerPicked p then p
     f p = p { playerPicked = True, playerDraft = snd . popped $ p, playerPool = maybe id (:) (fst . popped $ p) (playerPool p) }
     popped p = pop (index `mod` length (playerDraft p)) $ playerDraft p
 
-shift :: [a] -> [a]
-shift [] = []
-shift (x:xs) = xs ++ [x]
+shift :: Direction -> [a] -> [a]
+shift _ [] = []
+shift DLeft (x:xs) = xs ++ [x]
+shift DRight xs = last xs:init xs
 
 rotateCards :: Room -> Room
 rotateCards room = room { roomPlayers = pl' }
   where
     pl = roomPlayers room
-    drafts = shift . map (playerDraft . snd) $ M.toList pl
+    dir = roomDirection room
+    drafts = shift dir . map (playerDraft . snd) $ M.toList pl
     pl' = M.fromList . zipWith (\draft (uuid,player) -> (uuid, player { playerDraft = draft, playerPicked = False } )) drafts . M.toList $ pl
