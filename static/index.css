@@ -128,3 +128,43 @@ a, a:visited {
   width: 8em;
   font-size: 1.0em;
 }
+
+.card:hover {
+  position: relative;
+}
+
+.card:hover:after {
+    display: block;
+    position: absolute;
+    z-index: 1;
+    top: -200px;
+    left: 450px;
+}
+
+.eo1:hover:after { content: url(http://ponyhead.com/img/cards/eo1.jpg); }
+.eo2:hover:after { content: url(http://ponyhead.com/img/cards/eo2.jpg); }
+.eo4:hover:after { content: url(http://ponyhead.com/img/cards/eo4.jpg); }
+.eo5:hover:after { content: url(http://ponyhead.com/img/cards/eo5.jpg); }
+.eo7:hover:after { content: url(http://ponyhead.com/img/cards/eo7.jpg); }
+.eo8:hover:after { content: url(http://ponyhead.com/img/cards/eo8.jpg); }
+.mt1:hover:after { content: url(http://ponyhead.com/img/cards/mt1.jpg); }
+.mt2:hover:after { content: url(http://ponyhead.com/img/cards/mt2.jpg); }
+.mt3:hover:after { content: url(http://ponyhead.com/img/cards/mt3.jpg); }
+
+.cn1:hover:after { content: url(http://ponyhead.com/img/cards/cn1.jpg); }
+.cn2:hover:after { content: url(http://ponyhead.com/img/cards/cn2.jpg); }
+.cn3:hover:after { content: url(http://ponyhead.com/img/cards/cn3.jpg); }
+.cn5:hover:after { content: url(http://ponyhead.com/img/cards/cn5.jpg); }
+.cn6:hover:after { content: url(http://ponyhead.com/img/cards/cn6.jpg); }
+.cn7:hover:after { content: url(http://ponyhead.com/img/cards/cn7.jpg); }
+
+.eo191:hover:after { content: url(http://ponyhead.com/img/cards/eo191.jpg); }
+.eo200:hover:after { content: url(http://ponyhead.com/img/cards/eo200.jpg); }
+.eo202:hover:after { content: url(http://ponyhead.com/img/cards/eo202.jpg); }
+
+.pr164:hover:after { content: url(http://ponyhead.com/img/cards/pr164.jpg); }
+.pr168:hover:after { content: url(http://ponyhead.com/img/cards/pr168.jpg); }
+.pr170:hover:after { content: url(http://ponyhead.com/img/cards/pr170.jpg); }
+.pr177:hover:after { content: url(http://ponyhead.com/img/cards/pr177.jpg); }
+.pr190:hover:after { content: url(http://ponyhead.com/img/cards/pr190.jpg); }
+.pr192:hover:after { content: url(http://ponyhead.com/img/cards/pr192.jpg); }
