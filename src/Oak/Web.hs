@@ -52,10 +52,10 @@ runApp cfg db = do
 
 app :: SpockM () UserSession GlobalState ()
 app = do
-  middleware . staticPolicy $ addBase "static" <|> only
+  middleware . staticPolicy $ only
     [("app.js", "frontend/dist/app.js")
     ,("home.js", "frontend/dist/home.js")
-    ]
+    ] <|> addBase "static"
   prehook sessionHook $ do
     get root $ file "text/html" "static/index.html"
     roomComponent
