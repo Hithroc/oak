@@ -2,7 +2,8 @@ body {
   padding: 0px !important;
   margin: 0px !important;
   font-family: 'Monsterrat', sans-serif;
-  background-image: url("http://pre12.deviantart.net/d041/th/pre/i/2011/097/c/8/the_great_and_powerful_pattern_by_purpletinker-d3dess3.png");
+  background-image: url("/background.png");
+  background-size: 600px auto;
 }
 
 button {
@@ -75,6 +76,8 @@ a, a:visited {
 
 .element-header {
   text-align: center;
+  border-left: none;
+  border-right: none;
   font-size: 3em;
 }
 

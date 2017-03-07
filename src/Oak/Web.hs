@@ -58,6 +58,7 @@ app = do
     ,("home.js", "frontend/dist/home.js")
     ,("index.css", "static/index.css")
     ,("about.html", "static/about.html")
+    ,("background.png", "static/background.png")
     ]
   prehook sessionHook $ do
     get root $ file "text/html" "static/index.html"
