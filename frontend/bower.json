@@ -10,7 +10,8 @@
     "purescript-prelude": "^2.4.0",
     "purescript-console": "^2.0.0",
     "purescript-halogen": "1.0.0",
-    "purescript-affjax": "*"
+    "purescript-affjax": "*",
+    "purescript-websocket-simple": "*"
   },
   "devDependencies": {
     "purescript-psci-support": "^2.0.0"

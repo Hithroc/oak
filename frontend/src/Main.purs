@@ -1,7 +1,7 @@
 module Main where
 
 import Prelude
-import Control.Monad.Aff (Aff)
+import Control.Monad.Aff (Aff, launchAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Aff.Console (log)
@@ -29,8 +29,15 @@ import DOM.HTML.Types(WINDOW, ALERT)
 import DOM (DOM)
 import DOM.HTML(window)
 import DOM.HTML.Window(open, alert)
-import Control.Monad.Aff.AVar (AVAR)
+import DOM.HTML.Window as W
+import DOM.HTML.Location as L
+import Control.Monad.Aff.AVar
 import Control.Monad.Eff.Ref (REF)
+import WebSocket
+import Control.Monad.Eff.Var (($=), get)
+import Control.Monad.Eff.Exception (EXCEPTION)
+import Control.Monad.Rec.Class (forever)
+import Data.String (replaceAll, Pattern(..), Replacement(..))
 
 
 type ManeState = Unit
@@ -75,8 +82,8 @@ data ManeQuery a
 type ManeChildQuery = PlayerListQuery <\/> CardListQuery <\/> CardListQuery <\/> Const Void
 type ManeChildSlot = Unit \/ Unit \/ Unit \/ Void
 
-type Effects e = (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW, alert :: ALERT| e)
-type Effects2 e = Effects (dom :: DOM, ref :: REF, avar :: AVAR | e)
+type Effects e = (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW, alert :: ALERT, ws :: WEBSOCKET| e)
+type Effects2 e = Effects (dom :: DOM, ref :: REF, avar :: AVAR, err :: EXCEPTION | e)
 type ManeAff eff = Aff (Effects2 eff)
 mane :: forall m. H.Component HH.HTML ManeQuery ManeState Void (ManeAff m)
 mane =
@@ -114,8 +121,32 @@ mane =
      >=> eval<<<EventLoop $ next
     eval (EventLoop next) = do
       win <- H.liftEff $ window
+      loc <- H.liftEff $ L.href<=<W.location $ win
       let
         alert' = flip alert win
+        wsurl = replaceAll (Pattern "https://") (Replacement "wss://") 
+             <<<replaceAll (Pattern "http://") (Replacement "ws://")
+              $ loc
+      H.liftAff $ log wsurl
+      avar <- H.liftAff makeVar
+      Connection socket <- H.liftEff $ newWebSocket (URL $ wsurl <> "events") []
+      
+      H.liftEff $ socket.onmessage $= \event -> do
+        launchAff $ do
+          let received = runMessage (runMessageEvent event)
+          log $ "onmessage: Received '" <> received <> "'"
+          putVar avar received
+        pure unit
+      H.liftEff $ socket.onclose $= \event -> alert' $ "Connection with the server was lost"
+      forever $ do
+        e <- H.liftAff $ takeVar avar
+        case readEvent e of
+          Nothing -> pure unit
+          Just e' -> do
+            eval (ProcessEvent e' next)
+            pure unit
+      pure next
+      {-
       response <- H.liftAff $ AX.get "events"
       let
         ok = do
@@ -132,6 +163,7 @@ mane =
         StatusCode x -> do
           H.liftEff<<<alert' $ "Connection to the server is lost with code: " <> show x <> " (" <> show response.response <> ")\nTry to refresh the page."
           pure next
+       -}
     eval (ProcessEvent event next) = do
       case event of
         PlayersUpdate -> do
