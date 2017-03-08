@@ -25,6 +25,7 @@ type CardListState
   = { cards :: Array (Tuple Int C.Card)
     , picked :: Boolean
     , currentUrl :: String
+    , hovered :: Maybe String
     }
 
 data CardListQuery a
@@ -32,6 +33,8 @@ data CardListQuery a
   | NewCards (Array C.Card) Boolean a
   | UpdateLink a
   | GetDeckURL (String -> a)
+  | SetHovered String a
+  | SetUnhovered a
 
 data CardListMessage = CardPicked Int
 
@@ -58,7 +61,7 @@ cardList name req =
   }
   where
     initialState :: CardListState
-    initialState = { cards : [], picked: false, currentUrl: "" }
+    initialState = { cards : [], picked: false, currentUrl: "", hovered: Nothing }
     render :: forall m. CardListState -> H.ParentHTML CardListQuery C.CardQuery Int (CardListAff m)
     render st =
       HH.div
@@ -71,6 +74,7 @@ cardList name req =
         , HH.div [HP.class_ (ClassName "card-container")]
           <<< (\x -> x <> [HH.span [HP.class_ (ClassName "cardlist-clear")] []])
           <<< flip mapWithIndex st.cards $ \i c -> HH.slot (A.length st.cards - i) (C.card) (c) listen
+        , HH.img [HP.class_ (ClassName $ maybe "hover-card-hide" (const "hover-card") st.hovered), HP.src (maybe "" C.getImageURL st.hovered)]
         ]
 
     eval :: forall m. CardListQuery ~> H.ParentDSL CardListState CardListQuery C.CardQuery Int CardListMessage (CardListAff m)
@@ -90,6 +94,12 @@ cardList name req =
           cids <- H.queryAll $ H.request C.GetCID
           H.modify $ _ { currentUrl = toDeckURL $ M.values $ cids }
           pure next
+        SetHovered cid next -> do
+          H.modify $ _ { hovered = Just cid }
+          pure next
+        SetUnhovered next -> do
+          H.modify $ _ { hovered = Nothing }
+          pure next
         GetDeckURL reply -> do
           st <- H.get
           pure $ reply st.currentUrl
@@ -97,3 +107,5 @@ cardList name req =
     listen :: C.CardMessage -> Maybe (CardListQuery Unit)
     listen (C.Picked i) = Just<<<H.action $ PickCard i
     listen C.Updated = Just<<<H.action $ UpdateLink
+    listen (C.Hovered cid) = Just<<<H.action $ SetHovered cid
+    listen C.Unhovered = Just<<<H.action $ SetUnhovered

@@ -175,16 +175,16 @@ button {
   position: absolute;
   z-index: 1;
   transition: z-index 50ms step-end, transform 300ms ease;
+  cursor: pointer;
 }
 
 /* I am not sure if that's me being bad at CSS or it's just CSS is awful */
 .image-hover-hack {
   transform: scale(1.2);
   z-index: 3;
-  cursor: pointer;
 }
 
-.cardlist-picked .image-hover-hack {
+.cardlist-picked .card-image {
   cursor: auto;
 }
 
@@ -195,6 +195,15 @@ button {
   filter: none;
 }
 
+.hover-card, .hover-card-hide {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+
+.hover-card-hide {
+  display: none;
+}
 
 .cardlist-clear {
   clear: left;
