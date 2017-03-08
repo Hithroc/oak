@@ -42,6 +42,7 @@ runApp :: Config -> CardDatabase -> IO ()
 runApp cfg db = do
   let settings = setPort (cfg_port cfg)
                . setHost (fromString $ cfg_host cfg)
+               . setTimeout 3600
                $ defaultSettings
   trooms <- atomically $ newTVar (IM.empty)
   troomcnt <- atomically $ newTVar 0
