@@ -147,24 +147,7 @@ mane =
             eval (ProcessEvent e' next)
             pure unit
       pure next
-      {-
-      response <- H.liftAff $ AX.get "events"
-      let
-        ok = do
-          next' <- case readEvent response.response of
-            Nothing -> do
-              H.liftEff $ alert' "Failed to read response from the server!"
-              pure next
-            Just e -> eval (ProcessEvent e next)
-          eval (EventLoop next')
 
-      case response.status of
-        StatusCode 200 -> ok
-        StatusCode 502 -> eval (EventLoop next)
-        StatusCode x -> do
-          H.liftEff<<<alert' $ "Connection to the server is lost with code: " <> show x <> " (" <> show response.response <> ")\nTry to refresh the page."
-          pure next
-       -}
     eval (ProcessEvent event next) = do
       case event of
         PlayersUpdate -> do

@@ -97,6 +97,10 @@ a, a:visited {
   margin-right: auto;
 }
 
+.roomcount {
+  text-align: center;
+}
+
 .create-room-block > select {
   text-align: center;
   text-align-last: center;

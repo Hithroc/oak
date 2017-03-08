@@ -31,33 +31,39 @@ import Data.Array (mapWithIndex, replicate)
 import Data.Foldable (intercalate)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Eff.Exception (throwException, error)
+import Data.Int (fromString)
 
 
 type ManeState
   = { boosterAmount :: Int
+    , roomCount :: Maybe Int
     }
 
 data ManeQuery a
   = AddBooster a
   | RemoveBooster a
   | StartGame a
+  | Initialize a
 
 type Slot = Int
 
 type ManeAff eff = Aff (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW, dom :: DOM | eff)
 mane :: forall m. H.Component HH.HTML ManeQuery Unit Void (ManeAff m)
 mane =
-  H.parentComponent
-  { initialState : const { boosterAmount : 4 }
+  H.lifecycleParentComponent
+  { initialState : const { boosterAmount : 4, roomCount : Nothing }
   , render
   , eval
+  , initializer: Just (H.action Initialize)
+  , finalizer: Nothing
   , receiver : const Nothing
   }
   where
     render :: ManeState -> H.ParentHTML ManeQuery BoosterSelectorQuery Int (ManeAff m)
     render st =
       HH.div [ HP.class_ (ClassName "create-room-block")] $
-      [ HH.button [ HE.onClick (HE.input_ StartGame) ] [ HH.text "Create Room" ]
+      [ HH.div [HP.class_ (ClassName "roomcount")] [ HH.text $ "Amount of opened rooms: " <> maybe "0" show st.roomCount]
+      , HH.button [ HE.onClick (HE.input_ StartGame) ] [ HH.text "Create Room" ]
       , HH.div [HP.class_ (ClassName "booster-buttons")]
         [ HH.button [ HP.disabled $ st.boosterAmount >= 8, HE.onClick (HE.input_ AddBooster) ] [ HH.text "Add pack" ]
         , HH.button [ HP.disabled $ st.boosterAmount <= 1, HE.onClick (HE.input_ RemoveBooster) ] [ HH.text "Remove pack" ]
@@ -66,6 +72,11 @@ mane =
       <> mapWithIndex (\i x -> HH.slot i x unit absurd) (replicate st.boosterAmount boosterSelector)
 
     eval :: ManeQuery ~> H.ParentDSL ManeState ManeQuery BoosterSelectorQuery Slot Void (ManeAff m)
+    eval (Initialize next) = do
+      response <- H.liftAff $ AX.get ("/rooms")
+      H.modify $ _ { roomCount = fromString response.response }
+      pure next
+
     eval (AddBooster next) = do
       st <- H.get
       unless (st.boosterAmount >= 8) $ H.modify $ _ { boosterAmount = st.boosterAmount + 1 }

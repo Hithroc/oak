@@ -72,3 +72,7 @@ app = do
       text $ T.pack $ show req
     get "version" $ do
       text $ T.pack showVersion
+    get "rooms" $ do
+      trooms <- stateRooms <$> getState
+      count <- liftIO . atomically $ IM.size <$> readTVar trooms
+      text . T.pack . show $ count
