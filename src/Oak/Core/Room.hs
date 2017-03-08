@@ -89,18 +89,25 @@ broadcastEventTVar e troom = do
   room <- readTVar troom
   broadcastEvent e room
 
-nextEvent :: UUID -> TVar Room -> IO (Maybe Event)
-nextEvent uuid troom = do
+newEventListener :: UUID -> TVar Room -> IO UUID
+newEventListener uuid troom = do
   myuid <- nextRandom
   room <- atomically $ readTVar troom
   let pl = (roomPlayers room) M.! uuid -- TODO: Get rid of M.!
       tmvar = playerEventMVar pl
-      tq = playerEvents pl
   atomically $ do
     em <- isEmptyTMVar tmvar
     if em
     then putTMVar tmvar myuid
     else void $ swapTMVar tmvar myuid
+  return myuid
+
+nextEvent :: UUID -> UUID -> TVar Room -> IO (Maybe Event)
+nextEvent myuid uuid troom = do
+  room <- atomically $ readTVar troom
+  let pl = (roomPlayers room) M.! uuid -- TODO: Get rid of M.!
+      tmvar = playerEventMVar pl
+      tq = playerEvents pl
   atomically $ do
     e <- readTQueue $ tq
     mholduid <- tryReadTMVar tmvar

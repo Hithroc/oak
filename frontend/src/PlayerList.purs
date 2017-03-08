@@ -1,4 +1,4 @@
-module PlayerList (playerList, PlayerListQuery(..)) where
+module PlayerList (playerList, PlayerListQuery(..), jsonToPlayers, Player(..)) where
 
 import Prelude
 import Control.Monad.Aff (Aff)
@@ -33,7 +33,7 @@ type PlayerListState =
   }
 
 data PlayerListQuery a
-  = UpdateUsernames a
+  = UpdateUsernames (Array Player) a
   | ChangeInputname String a
   | MakeNamechangeRequest a
 
@@ -45,7 +45,7 @@ playerList =
     { initialState : const initialState
     , render
     , eval
-    , initializer: Just (H.action UpdateUsernames)
+    , initializer: Nothing
     , finalizer: Nothing
     , receiver: const Nothing
     }
@@ -72,11 +72,8 @@ playerList =
         ChangeInputname str next -> do
           H.modify (_ { inputname = str })
           pure next
-        UpdateUsernames next -> do
-          response <- H.liftAff $ AX.get "playerlist"
-          case jsonToPlayers response.response of
-            Nothing -> pure unit
-            Just p -> void $ H.modify (_ { players = p })
+        UpdateUsernames players next -> do
+          H.modify (_ { players = players })
           pure next
         MakeNamechangeRequest next -> do
           n <- H.gets _.inputname

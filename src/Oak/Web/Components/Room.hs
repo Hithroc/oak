@@ -12,6 +12,7 @@ import qualified Data.IntMap as IM
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import Data.Aeson.TH
+import Data.Aeson (encode)
 import Control.Applicative
 import Control.Monad.Random
 import Network.Wai (rawPathInfo)
@@ -49,6 +50,19 @@ data CardListAPI
   }
 $(deriveJSON defaultOptions { fieldLabelModifier = drop 5 } ''CardListAPI)
 
+data JSONPayload a
+  = JSONPayload
+  { pyld_name :: String
+  , pyld_data :: a
+  }
+$(deriveJSON defaultOptions { fieldLabelModifier = drop 5 } ''JSONPayload)
+
+playerlistToPayload :: [PlayerAPI] -> JSONPayload [PlayerAPI]
+playerlistToPayload = JSONPayload "player_list"
+
+cardlistToPayload :: CardListAPI -> JSONPayload CardListAPI
+cardlistToPayload = JSONPayload "card_list"
+
 playerObj :: Player -> PlayerAPI
 playerObj = liftA2 PlayerAPI playerName playerPicked
 
@@ -75,8 +89,6 @@ roomComponent = do
     roomR       = roomBaseR <//> var
     nameChangeR = roomR <//> "changename"
     cardPickR   = roomR <//> "pick"       <//> var
-    playerListR = roomR <//> "playerlist"
-    cardListR   = roomR <//> "cardlist"
     startR      = roomR <//> "start"
     eventsR     = roomR <//> "events"
     joinR       = roomR <//> "join"
@@ -102,20 +114,6 @@ roomComponent = do
 
   get roomR $ \(ruid :: T.Text) -> directoryHook $ withRoom ruid $ \_ -> do
     file "text/html" "static/room.html"
-
-  get playerListR $ \(ruid :: T.Text) -> withRoom ruid $ \(_, troom) -> do
-    room <- liftIO . readTVarIO $ troom
-    json . map playerObj 
-         . M.elems . roomPlayers
-         $ room
-
-  get cardListR $ \(ruid :: T.Text) -> withRoom ruid $ \(_, troom) -> do
-    uuid <- getUserUUID <$> readSession
-    room <- liftIO . readTVarIO $ troom
-    json . cardListObj
-         . flip (M.!) uuid
-         . roomPlayers
-         $ room
 
   post nameChangeR $ \ruid -> withRoom ruid $ \(_, troom) -> do
     name <- T.decodeUtf8 <$> body
@@ -156,13 +154,31 @@ roomComponent = do
   get eventsR $ \ruid -> withRoom ruid $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
     let
-      wsHandler conn = do
-        print uuid
-        me <- nextEvent uuid troom
+      wsLoop conn myuid = do
+        me <- nextEvent myuid uuid troom
         flip (maybe (sendClose conn ("Another connection was opened" :: T.Text))) me $ \e -> do
-          sendTextData conn . T.pack . show $ e
-          wsHandler conn
-      wsApp = wsHandler <=< acceptRequest
+          room <- atomically $ readTVar troom
+          let 
+            pl = case e of
+              CardListUpdate -> encode . cardlistToPayload
+                . cardListObj
+                . flip (M.!) uuid
+                . roomPlayers
+                $ room
+              PlayersUpdate -> encode . playerlistToPayload
+                . map playerObj 
+                . M.elems . roomPlayers
+                $ room
+              _ -> ""
+          sendTextData conn pl
+          wsLoop conn myuid
+      wsApp penconn = do
+        conn <- acceptRequest penconn
+        myuid <- newEventListener uuid troom
+        atomically $ do
+          sendEvent CardListUpdate uuid troom
+          sendEvent PlayersUpdate uuid troom
+        wsLoop conn myuid
       backupApp _ respond = respond $ responseLBS status400 [] "Not a WebSocket request"
     respondApp $ websocketsOr defaultConnectionOptions wsApp backupApp
 

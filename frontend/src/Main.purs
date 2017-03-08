@@ -22,7 +22,7 @@ import Data.Maybe(Maybe(..), maybe)
 import Data.Traversable(sequence)
 import CardList (cardList, CardListQuery(..), CardListMessage(..))
 import Card (Card(..), jsonToCard, card)
-import PlayerList (playerList, PlayerListQuery(..))
+import PlayerList (playerList, PlayerListQuery(..), jsonToPlayers)
 import Data.Const
 import Network.HTTP.StatusCode(StatusCode(..))
 import DOM.HTML.Types(WINDOW, ALERT)
@@ -38,6 +38,10 @@ import Control.Monad.Eff.Var (($=), get)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Rec.Class (forever)
 import Data.String (replaceAll, Pattern(..), Replacement(..))
+import Data.Argonaut.Core as A
+import Data.Argonaut.Parser as A
+import Data.Tuple
+import Data.Either
 
 
 type ManeState = Unit
@@ -57,15 +61,15 @@ jsonToCardList = A.foldJsonObject Nothing $ \jmap -> do
   pool <- sequence $ map jsonToCard jpool
   pure { draft: draft, pool: pool, picked: picked }
 
-data Event
-  = PlayersUpdate
-  | CardListUpdate
+jsonPayload :: A.Json -> Maybe (Tuple String A.Json)
+jsonPayload = A.foldJsonObject Nothing $ \jmap -> do
+  name <- M.lookup "name" jmap >>= A.toString
+  data_ <- M.lookup "data" jmap
+  pure $ Tuple name data_
 
-readEvent :: String -> Maybe Event
-readEvent str
-  | str == "PlayersUpdate" = Just PlayersUpdate
-  | str == "CardListUpdate" = Just CardListUpdate
-  | otherwise = Nothing
+data Event
+  = PlayersUpdate A.Json
+  | CardListUpdate A.Json
 
 data ManeQuery a
   = EventLoop a
@@ -115,10 +119,7 @@ mane =
         ]
 
     eval :: ManeQuery ~> H.ParentDSL ManeState ManeQuery ManeChildQuery ManeChildSlot Void (ManeAff m)
-    eval (Initialize next)
-      =  eval<<<ProcessEvent PlayersUpdate
-     >=> eval<<<ProcessEvent CardListUpdate
-     >=> eval<<<EventLoop $ next
+    eval (Initialize next) = eval (EventLoop next)
     eval (EventLoop next) = do
       win <- H.liftEff $ window
       loc <- H.liftEff $ L.href<=<W.location $ win
@@ -141,21 +142,29 @@ mane =
       H.liftEff $ socket.onerror $= \event -> alert' $ "Connection with the server was lost"
       forever $ do
         e <- H.liftAff $ takeVar avar
-        case readEvent e of
-          Nothing -> pure unit
-          Just e' -> do
-            eval (ProcessEvent e' next)
-            pure unit
+        H.liftAff $ log e
+        let
+          eitherToMaybe (Right x) = Just x
+          eitherToMaybe _ = Nothing
+        case eitherToMaybe (A.jsonParser e) >>= jsonPayload of
+          Nothing -> pure next
+          Just payload -> do
+            case fst payload of
+              "player_list" -> eval (ProcessEvent (PlayersUpdate (snd payload)) next)
+              "card_list" -> eval (ProcessEvent (CardListUpdate (snd payload)) next)
+              _ -> pure next
       pure next
 
     eval (ProcessEvent event next) = do
       case event of
-        PlayersUpdate -> do
-          H.query' CP.cp1 unit (H.action UpdateUsernames)
-          pure unit
-        CardListUpdate -> do
-          cardresp <- H.liftAff $ AX.get "cardlist"
-          case jsonToCardList $ cardresp.response of
+        PlayersUpdate pldata -> do
+          case jsonToPlayers pldata of
+            Nothing -> pure unit
+            Just players -> do
+              H.query' CP.cp1 unit (H.action $ UpdateUsernames players)
+              pure unit
+        CardListUpdate pldata -> do
+          case jsonToCardList pldata of
             Nothing -> pure unit
             Just cl -> do
               H.query' CP.cp2 unit (H.action (NewCards cl.draft cl.picked))
