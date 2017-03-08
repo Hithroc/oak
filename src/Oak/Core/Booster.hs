@@ -64,8 +64,8 @@ pickPred (p:ps) xs
   fmap (c:) (pickPred ps (maybe id (S.delete) c xs))
 
 pickRarity :: MonadRandom m => [(Rarity, Rational)] -> m Rarity
-pickRarity xs = fromList $ (Common, min 0 comr) : xs -- MonadRandom's fromList
-  where comr = min 0 . foldl (-) 1 . map snd $ xs
+pickRarity xs = fromList $ (Common, comr) : xs -- MonadRandom's fromList
+  where comr = max 0 . foldl (-) 1 . map snd $ xs
 
 generateBooster' :: MonadRandom m => [(Rarity, Rational)] -> S.Set Card -> m [Maybe Card]
 generateBooster' ws cards = do
