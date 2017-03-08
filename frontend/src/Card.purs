@@ -34,16 +34,12 @@ type CardState =
 data CardQuery a
   = Pick a
   | Fallback a
-  | SendHovered a
-  | SendUnhovered a
   | Update (Tuple Int Card) a
   | GetCID (String -> a)
 
 data CardMessage
   = Picked Int
   | Updated
-  | Hovered String
-  | Unhovered
 
 getPonyHeadID :: Card -> Tuple String String
 getPonyHeadID st = Tuple (getId toUpper) (getId toLower)
@@ -82,12 +78,11 @@ card =
     render :: CardState -> H.ComponentHTML CardQuery
     render st =
         HH.div [ HP.class_ (ClassName "card"), HE.onClick (HE.input_ Pick) ]
-        [ HH.img $
+        [ HH.div [ HP.class_ (ClassName "image-hover-hack") ] []
+        , HH.img $
             [ HP.src $ getImageURL st.cid
             , HP.alt (show st.fallbacked)
             , HP.class_ (ClassName "card-image")
-            , HE.onMouseEnter (HE.input_ SendHovered)
-            , HE.onMouseLeave (HE.input_ SendUnhovered)
             ] 
           <> if not st.fallbacked
           then [HE.onError (HE.input_ Fallback)]
@@ -107,13 +102,6 @@ card =
         Fallback next -> do
           H.modify $ \st -> st { cid = snd (st.ponyid), fallbacked = true }
           H.raise Updated
-          pure next
-        SendHovered next -> do
-          st <- H.get
-          H.raise $ Hovered st.cid
-          pure next
-        SendUnhovered next -> do
-          H.raise $ Unhovered
           pure next
         GetCID reply -> do
           st <- H.get

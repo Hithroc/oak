@@ -16,7 +16,6 @@ import Halogen.Aff as HA
 import Halogen.VDom.Driver (runUI)
 import Network.HTTP.Affjax (AJAX)
 import Data.Argonaut.Core as A
-import Data.Argonaut.Parser as A
 import Network.HTTP.Affjax as AX
 import Data.StrMap as M
 import Data.Maybe(Maybe(..), maybe)
@@ -39,6 +38,8 @@ import Control.Monad.Eff.Var (($=), get)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Rec.Class (forever)
 import Data.String (replaceAll, Pattern(..), Replacement(..))
+import Data.Argonaut.Core as A
+import Data.Argonaut.Parser as A
 import Data.Tuple
 import Data.Either
 
@@ -134,9 +135,10 @@ mane =
       H.liftEff $ socket.onmessage $= \event -> do
         launchAff $ do
           let received = runMessage (runMessageEvent event)
+          log $ "onmessage: Received '" <> received <> "'"
           putVar avar received
         pure unit
-      H.liftEff $ socket.onclose $= \event -> alert' $ "Connection was closed"
+      H.liftEff $ socket.onclose $= \event -> alert' $ "Connection was closed by the server"
       H.liftEff $ socket.onerror $= \event -> alert' $ "Connection with the server was lost"
       forever $ do
         e <- H.liftAff $ takeVar avar
