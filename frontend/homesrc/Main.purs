@@ -10,12 +10,10 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.HTML.Core(AttrName(..), ClassName(..))
-import Halogen.Data.Prism (type (<\/>), type (\/))
 import Halogen.Component.ChildPath as CP
 import Halogen.Aff as HA
 import Halogen.VDom.Driver (runUI)
 import Network.HTTP.Affjax (AJAX)
-import Data.Argonaut.Core as A
 import Network.HTTP.Affjax as AX
 import Data.Map as M
 import Data.Maybe(Maybe(..), maybe)
@@ -32,10 +30,11 @@ import Data.Foldable (intercalate)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Eff.Exception (throwException, error)
 import Data.Int (fromString)
+import Data.Array as A
 
 
 type ManeState
-  = { boosterAmount :: Int
+  = { boosters :: Array BoosterType
     , roomCount :: Maybe Int
     }
 
@@ -51,7 +50,7 @@ type ManeAff eff = Aff (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW, d
 mane :: forall m. H.Component HH.HTML ManeQuery Unit Void (ManeAff m)
 mane =
   H.lifecycleParentComponent
-  { initialState : const { boosterAmount : 4, roomCount : Nothing }
+  { initialState : const { boosters : [EquestrianOdysseys, HighMagic, HighMagic, MarksInTime], roomCount : Nothing }
   , render
   , eval
   , initializer: Just (H.action Initialize)
@@ -65,11 +64,11 @@ mane =
       [ HH.div [HP.class_ (ClassName "roomcount")] [ HH.text $ "Amount of opened rooms: " <> maybe "0" show st.roomCount]
       , HH.button [ HE.onClick (HE.input_ StartGame) ] [ HH.text "Create Room" ]
       , HH.div [HP.class_ (ClassName "booster-buttons")]
-        [ HH.button [ HP.disabled $ st.boosterAmount >= 8, HE.onClick (HE.input_ AddBooster) ] [ HH.text "Add pack" ]
-        , HH.button [ HP.disabled $ st.boosterAmount <= 1, HE.onClick (HE.input_ RemoveBooster) ] [ HH.text "Remove pack" ]
+        [ HH.button [ HP.disabled $ A.length st.boosters >= 8, HE.onClick (HE.input_ AddBooster) ] [ HH.text "Add pack" ]
+        , HH.button [ HP.disabled $ A.length st.boosters <= 1, HE.onClick (HE.input_ RemoveBooster) ] [ HH.text "Remove pack" ]
         ]
       ]
-      <> mapWithIndex (\i x -> HH.slot i x unit absurd) (replicate st.boosterAmount boosterSelector)
+      <> mapWithIndex (\i x -> HH.slot i boosterSelector x absurd) st.boosters
 
     eval :: ManeQuery ~> H.ParentDSL ManeState ManeQuery BoosterSelectorQuery Slot Void (ManeAff m)
     eval (Initialize next) = do
@@ -79,12 +78,14 @@ mane =
 
     eval (AddBooster next) = do
       st <- H.get
-      unless (st.boosterAmount >= 8) $ H.modify $ _ { boosterAmount = st.boosterAmount + 1 }
+      unless (A.length st.boosters >= 8) $ H.modify $ _ { boosters = st.boosters <> [Premiere] }
       pure next
 
     eval (RemoveBooster next) = do
       st <- H.get
-      unless (st.boosterAmount <= 1) $ H.modify $ _ { boosterAmount = st.boosterAmount - 1 }
+      case A.init st.boosters of
+        Nothing -> pure unit
+        Just boosters' -> void $ H.modify $ _ { boosters = boosters'}
       pure next
 
     eval (StartGame next) = do

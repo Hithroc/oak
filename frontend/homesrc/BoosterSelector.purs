@@ -18,6 +18,7 @@ data BoosterType
   | EquestrianOdysseys
   | HighMagic
   | MarksInTime
+derive instance eqBoosterType :: Eq BoosterType
 
 instance showBoosterType :: Show BoosterType where
   show Premiere = "Premiere"
@@ -47,28 +48,32 @@ type BoosterSelectorState
 data BoosterSelectorQuery a
   = GetBooster (BoosterType -> a)
   | SetBooster Int a
+  | SetBoosterType BoosterType a
 
-boosterSelector :: forall m. H.Component HH.HTML BoosterSelectorQuery Unit Void m
+boosterSelector :: forall m. H.Component HH.HTML BoosterSelectorQuery BoosterType Void m
 boosterSelector =
   H.component
-  { initialState : const initialState
+  { initialState : initialState
   , render
   , eval
-  , receiver: const Nothing
+  , receiver: HE.input SetBoosterType
   }
   where
-    initialState :: BoosterSelectorState
-    initialState = { booster : Premiere }
+    initialState :: BoosterType -> BoosterSelectorState
+    initialState bt = { booster : bt }
 
     render :: BoosterSelectorState -> H.ComponentHTML BoosterSelectorQuery
     render st =
       HH.select [HE.onSelectedIndexChange (HE.input SetBooster), HP.class_ (ClassName $ show st.booster)] $
-      map (\x -> HH.option_ [HH.text $ show x]) boosterTypes
+      map (\x -> HH.option (if x == st.booster then [HP.selected true] else []) [HH.text $ show x]) boosterTypes
 
     eval :: BoosterSelectorQuery ~> H.ComponentDSL BoosterSelectorState BoosterSelectorQuery Void m
     eval (GetBooster reply) = do
       st <- H.get
       pure (reply st.booster)
+    eval (SetBoosterType bt next) = do
+      H.modify $ _ { booster = bt }
+      pure next
     eval (SetBooster ix next) = do
       case boosterTypes !! ix of
         Just b -> H.modify $ _ { booster = b }
