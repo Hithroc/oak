@@ -63,6 +63,12 @@ playerlistToPayload = JSONPayload "player_list"
 cardlistToPayload :: CardListAPI -> JSONPayload CardListAPI
 cardlistToPayload = JSONPayload "card_list"
 
+shutdownPayload :: JSONPayload ()
+shutdownPayload = JSONPayload "shutdown" ()
+
+unknownPayload :: JSONPayload ()
+unknownPayload = JSONPayload "unknown" ()
+
 playerObj :: Player -> PlayerAPI
 playerObj = liftA2 PlayerAPI playerName playerPicked
 
@@ -154,8 +160,8 @@ roomComponent = do
   get eventsR $ \ruid -> withRoom ruid $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
     let
-      wsLoop conn myuid = do
-        me <- atomically $ nextEvent myuid uuid troom
+      wsLoop conn = do
+        me <- atomically $ nextEvent uuid troom
         flip (maybe (sendClose conn ("Another connection was opened" :: T.Text))) me $ \e -> do
           room <- atomically $ readTVar troom
           let 
@@ -169,16 +175,17 @@ roomComponent = do
                 . map playerObj 
                 . M.elems . roomPlayers
                 $ room
-              _ -> ""
+              ServerShutdown -> encode shutdownPayload
+              _ -> encode unknownPayload
           sendTextData conn pl
-          wsLoop conn myuid
+          wsLoop conn
       wsApp penconn = do
         conn <- acceptRequest penconn
-        myuid <- newEventListener uuid troom
         atomically $ do
+          terminateEventQueue uuid troom
           sendEvent CardListUpdate uuid troom
           sendEvent PlayersUpdate uuid troom
-        wsLoop conn myuid
+        wsLoop conn
       backupApp _ respond = respond $ responseLBS status400 [] "Not a WebSocket request"
     respondApp $ websocketsOr defaultConnectionOptions wsApp backupApp
 

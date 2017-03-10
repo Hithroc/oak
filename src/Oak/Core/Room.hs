@@ -1,7 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Oak.Core.Room where
 import Data.UUID (UUID, nil)
-import Data.UUID.V4
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -18,6 +17,7 @@ data Event
   = PlayersUpdate
   | CardListUpdate
   | ServerShutdown
+  | TerminateListener
   deriving Show
 
 data Direction = DLeft | DRight
@@ -31,7 +31,6 @@ changeDirection DRight = DLeft
 data PlayerEventQueue
   = PlayerEventQueue
   { playerEvents :: TQueue Event
-  , playerEventMVar :: TMVar UUID
   }
 
 newtype MPlayerEventQueue = MPlayerEventQueue (Maybe PlayerEventQueue)
@@ -100,10 +99,14 @@ initEventQueue uuid troom = do
     Just eq -> return eq
     Nothing -> do
       queue <- newTQueue
-      mvar <- newEmptyTMVar
-      let eq = PlayerEventQueue queue mvar
+      let eq = PlayerEventQueue queue
       modifyTVar troom (modifyPlayer uuid (\p -> p { playerEventQueue = MPlayerEventQueue $ Just eq }))
       return eq
+
+terminateEventQueue :: UUID -> TVar Room -> STM ()
+terminateEventQueue uuid troom = do
+  sendEvent TerminateListener uuid troom
+  modifyTVar troom (modifyPlayer uuid (\p -> p { playerEventQueue = (MPlayerEventQueue Nothing) }))
 
 addPlayerSTM :: UUID -> TVar Room -> STM ()
 addPlayerSTM uuid = flip modifyTVar (addPlayer uuid)
@@ -120,33 +123,14 @@ broadcastEvent e troom = readTVar troom >>= sequence_
   . M.keys
   . roomPlayers
 
-newEventListener :: UUID -> TVar Room -> IO UUID
-newEventListener uuid troom = do
-  myuid <- nextRandom
-  atomically $ do
-    tmvar <- playerEventMVar <$> initEventQueue uuid troom
-    em <- isEmptyTMVar tmvar
-    if em
-    then putTMVar tmvar myuid
-    else void $ swapTMVar tmvar myuid
-  return myuid
-
-nextEvent :: UUID -> UUID -> TVar Room -> STM (Maybe Event)
-nextEvent myuid uuid troom = do
+nextEvent :: UUID -> TVar Room -> STM (Maybe Event)
+nextEvent uuid troom = do
   eq <- initEventQueue uuid troom
-  let
-    tq = playerEvents eq
-    tmvar = playerEventMVar eq
+  let tq = playerEvents eq
   e <- readTQueue $ tq
-  mholduid <- tryReadTMVar tmvar
-  case mholduid of
-    Just holduid -> do
-      if holduid == myuid
-      then return $ Just e
-      else do
-        unGetTQueue tq e
-        return Nothing
-    Nothing -> return $ Just e
+  case e of
+    TerminateListener -> return Nothing
+    _ -> return $ Just e
 
 sendEvent :: Event -> UUID -> TVar Room -> STM ()
 sendEvent e uuid = flip writeTQueue e . playerEvents <=< initEventQueue uuid
