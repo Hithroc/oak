@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Oak.Core.Room where
-import Data.UUID (UUID, nil, toWords, fromWords)
+import Data.UUID (UUID, nil)
 import Data.UUID.V4
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -9,6 +9,7 @@ import Data.Maybe
 import Control.Monad.Random.Strict
 import Control.Concurrent.STM
 import Data.SafeCopy
+import Data.UUID.SafeCopy ()
 
 import Oak.Core.Booster
 
@@ -58,11 +59,6 @@ defaultPlayer
   , playerPicked = False
   , playerEventQueue = (MPlayerEventQueue Nothing)
   }
-
-instance SafeCopy UUID where
-  putCopy = contain . safePut . toWords
-  getCopy = contain $ uncurry4 fromWords <$> safeGet
-    where uncurry4 f (a, b, c, d) = f a b c d
 
 data Room
   = Room
