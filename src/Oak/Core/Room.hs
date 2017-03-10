@@ -17,7 +17,7 @@ import Oak.Core.Booster
 data Event
   = PlayersUpdate
   | CardListUpdate
-  | Terminate
+  | ServerShutdown
   deriving Show
 
 data Direction = DLeft | DRight

@@ -19,11 +19,14 @@ import qualified Data.ByteString as BS
 import Data.SafeCopy
 import qualified Data.Serialize as S
 import Oak.Core.Room (Room)
+import System.Posix.Signals
+import Control.Exception
 
 import Oak.Web.Types
 import Oak.Web.Components
 import Oak.Core.Booster
 import Oak.Config
+import Oak.Core.Room
 
 customError :: MonadIO m => Status -> ActionCtxT ctx m ()
 customError s = do
@@ -42,11 +45,11 @@ sessionHook = do
     nuuid <- liftIO $ nextRandom
     modifySession $ (\x -> x { getUserUUID = nuuid })
 
-serializeRooms :: Rooms -> STM (S.Put)
+serializeRooms :: Rooms -> STM BS.ByteString
 serializeRooms trooms = do
   rooms <- readTVar trooms
   srooms <- sequence $ fmap readTVar rooms
-  return $ safePut srooms
+  return . S.runPut $ safePut srooms
 
 deserializeRooms :: BS.ByteString -> STM (Either String Rooms)
 deserializeRooms str = case S.runGet (safeGet :: S.Get (IM.IntMap Room)) str of
@@ -55,15 +58,35 @@ deserializeRooms str = case S.runGet (safeGet :: S.Get (IM.IntMap Room)) str of
 
 runApp :: Config -> CardDatabase -> IO ()
 runApp cfg db = do
-  let settings = setPort (cfg_port cfg)
-               . setHost (fromString $ cfg_host cfg)
-               . setTimeout 3600
-               $ defaultSettings
   trooms <- atomically $ newTVar (IM.empty)
+  let
+    shutdownHandler :: IO ()
+    shutdownHandler = do
+      atomically $ do
+        rooms <- readTVar trooms
+        sequence_ . fmap (broadcastEvent ServerShutdown) $ rooms
+      srooms <- atomically $ serializeRooms trooms
+      BS.writeFile "rooms.bin" srooms
+    installShutdownHandler :: IO () -> IO ()
+    installShutdownHandler closeSocket =
+      void $ installHandler sigTERM (Catch $ shutdownHandler >> closeSocket) Nothing
+    settings = setPort (cfg_port cfg)
+             . setHost (fromString $ cfg_host cfg)
+             . setInstallShutdownHandler installShutdownHandler
+             . setTimeout 3600
+             . setGracefulShutdownTimeout (Just 10)
+             $ defaultSettings
+  srooms <- try (BS.readFile "rooms.bin")
+  case srooms of
+    Left (SomeException e) -> putStrLn $ "Failed to read the file: " ++ show e
+    Right t -> do
+      t' <- atomically $ deserializeRooms t
+      case t' of
+        Left e -> putStrLn $ "Failed to deserialize rooms: " ++ e
+        Right rooms -> atomically $ readTVar rooms >>= writeTVar trooms
   spockCfg <- defaultSpockCfg (UserSession UUID.nil) PCNoDatabase (GlobalState trooms db)
   spockapp <- spockAsApp (spock (spockCfg { spc_errorHandler = customError }) app)
   runSettings (settings) (spockapp)
-
 
 app :: SpockM () UserSession GlobalState ()
 app = do
@@ -75,22 +98,6 @@ app = do
     get root $ file "text/html" "static/index.html"
     roomComponent
     get ("debug" <//> "exception") $ error "[](/rdwut)"
-    get ("debug" <//> "serialize") $ do
-      trooms <- stateRooms <$> getState
-      p <- liftIO . atomically $ serializeRooms trooms
-      liftIO $ BS.writeFile "rooms" (S.runPut p)
-    get ("debug" <//> "deserialize") $ do
-      str <- liftIO $ BS.readFile "rooms"
-      trooms <- stateRooms <$> getState
-      r <- liftIO . atomically $ do
-        t <- deserializeRooms str
-        case t of
-          Left e -> return $ fromString e
-          Right t' -> do
-            t'' <- readTVar t'
-            writeTVar trooms t''
-            return "Success"
-      text r
     get ("debug" <//> "session") $ do
       sess <- readSession
       sessid <- getSessionId
