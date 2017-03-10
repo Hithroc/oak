@@ -50,7 +50,7 @@ type ManeAff eff = Aff (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW, d
 mane :: forall m. H.Component HH.HTML ManeQuery Unit Void (ManeAff m)
 mane =
   H.lifecycleParentComponent
-  { initialState : const { boosters : [EquestrianOdysseys, HighMagic, HighMagic, MarksInTime], roomCount : Nothing }
+  { initialState : const { boosters : [EquestrianOdysseys, HighMagic, MarksInTime, MarksInTime], roomCount : Nothing }
   , render
   , eval
   , initializer: Just (H.action Initialize)
