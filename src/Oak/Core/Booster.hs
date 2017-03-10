@@ -19,18 +19,18 @@ boosterWeights AbsoluteDiscordBooster = [(UltraRare, 1 % 11)]
 boosterWeights EquestrianOdysseysBooster
   = [ (UltraRare, 4 % 36)
     , (SuperRare, 8 % 36)
-    , (RoyalRare, 1 % 216)
+--    , (RoyalRare, 1 % 216)
     ]
 boosterWeights HighMagicBooster
   = [ (UltraRare, 4 % 36)
   , (SuperRare, 8 % 36)
-  , (RoyalRare, 1 % 216)
+--  , (RoyalRare, 1 % 216)
   ]
 
 boosterWeights MarksInTimeBooster
   = [ (UltraRare, 4 % 36)
     , (SuperRare, 8 % 36)
-    , (RoyalRare, 1 % 216)
+--    , (RoyalRare, 1 % 216)
     ]
 boosterWeights (CustomBooster _ x) = x
 
