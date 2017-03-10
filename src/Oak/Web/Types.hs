@@ -11,8 +11,7 @@ type Rooms = TVar (IM.IntMap (TVar Room))
 
 data GlobalState
   = GlobalState
-  { roomCounter :: TVar Int
-  , stateRooms :: Rooms
+  { stateRooms :: Rooms
   , cardDb :: CardDatabase
   }
 data UserSession

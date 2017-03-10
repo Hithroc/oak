@@ -10,6 +10,7 @@ import Control.Monad.Random.Strict
 import Control.Concurrent.STM
 import Data.SafeCopy
 import Data.UUID.SafeCopy ()
+import Data.Serialize (Get)
 
 import Oak.Core.Booster
 
@@ -20,6 +21,7 @@ data Event
   deriving Show
 
 data Direction = DLeft | DRight
+  deriving Show
 deriveSafeCopy 1 'base ''Direction
 
 changeDirection :: Direction -> Direction
@@ -36,9 +38,14 @@ newtype MPlayerEventQueue = MPlayerEventQueue (Maybe PlayerEventQueue)
 fromMPEQ :: MPlayerEventQueue -> Maybe PlayerEventQueue
 fromMPEQ (MPlayerEventQueue a) = a
 
+instance Show MPlayerEventQueue where
+  show _ = "EventQueue"
+
 instance SafeCopy (MPlayerEventQueue) where
-  putCopy _ = contain $ safePut (MPlayerEventQueue Nothing)
-  getCopy = contain $ return (MPlayerEventQueue Nothing)
+  version = 1
+  putCopy (MPlayerEventQueue Nothing) = contain $ safePut ()
+  putCopy (MPlayerEventQueue _) = putCopy (MPlayerEventQueue Nothing)
+  getCopy = contain $ const (MPlayerEventQueue Nothing) <$> (safeGet :: Get ())
 
 data Player
   = Player
@@ -48,6 +55,7 @@ data Player
   , playerPicked :: Bool
   , playerEventQueue :: MPlayerEventQueue
   }
+  deriving Show
 deriveSafeCopy 1 'base ''Player
 
 defaultPlayer :: Player
@@ -68,6 +76,7 @@ data Room
   , roomHost :: UUID
   , roomDirection :: Direction
   }
+  deriving Show
 deriveSafeCopy 1 'base ''Room
 
 createRoom :: [BoosterType] -> Room
