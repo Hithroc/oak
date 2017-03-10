@@ -120,8 +120,7 @@ roomComponent = do
     uuid <- getUserUUID <$> readSession
     liftIO . atomically $ do
       modifyTVar troom $ (modifyPlayer uuid (\x -> x { playerName = name }))
-      room <- readTVar troom
-      broadcastEvent PlayersUpdate room
+      broadcastEvent PlayersUpdate troom
 
   get cardPickR $ \ruid pick -> withRoom ruid $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
@@ -135,10 +134,10 @@ roomComponent = do
         room' <- evalRandTIO $ crackBooster db room
         atomically $ writeTVar troom room'
       else atomically $ modifyTVar troom (rotateCards)
-      atomically $ broadcastEvent CardListUpdate room
+      atomically $ broadcastEvent CardListUpdate troom
     liftIO . atomically $ do
       sendEvent CardListUpdate uuid troom 
-      broadcastEventTVar PlayersUpdate troom
+      broadcastEvent PlayersUpdate troom
 
   get startR $ \ruid -> withRoom ruid $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
@@ -148,14 +147,15 @@ roomComponent = do
     then setStatus forbidden403 >> text "You're not the host!"
     else unless (roomClosed room) $ do
       room' <- liftIO . evalRandTIO $ crackBooster db room
-      liftIO . atomically $ writeTVar troom (room' { roomClosed = True })
-      liftIO . atomically $ broadcastEvent CardListUpdate room
+      liftIO . atomically $ do
+        writeTVar troom (room' { roomClosed = True })
+        broadcastEvent CardListUpdate troom
 
   get eventsR $ \ruid -> withRoom ruid $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
     let
       wsLoop conn myuid = do
-        me <- nextEvent myuid uuid troom
+        me <- atomically $ nextEvent myuid uuid troom
         flip (maybe (sendClose conn ("Another connection was opened" :: T.Text))) me $ \e -> do
           room <- atomically $ readTVar troom
           let 
@@ -186,7 +186,7 @@ roomComponent = do
     uuid <- getUserUUID <$> readSession
     liftIO . atomically $ do
       addPlayerSTM uuid $ troom
-      broadcastEventTVar PlayersUpdate troom
+      broadcastEvent PlayersUpdate troom
     redirect $ renderRoute roomR ruid
 
 withRoom :: T.Text

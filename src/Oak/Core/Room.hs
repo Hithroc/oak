@@ -1,5 +1,6 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Oak.Core.Room where
-import Data.UUID (UUID, nil)
+import Data.UUID (UUID, nil, toWords, fromWords)
 import Data.UUID.V4
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -7,20 +8,36 @@ import Data.Text (Text)
 import Data.Maybe
 import Control.Monad.Random.Strict
 import Control.Concurrent.STM
+import Data.SafeCopy
 
 import Oak.Core.Booster
 
 data Event
   = PlayersUpdate
   | CardListUpdate
-  | Terminate UUID -- Terminate all other event listeners
+  | Terminate
   deriving Show
 
 data Direction = DLeft | DRight
+deriveSafeCopy 1 'base ''Direction
 
 changeDirection :: Direction -> Direction
 changeDirection DLeft = DRight
 changeDirection DRight = DLeft
+
+data PlayerEventQueue
+  = PlayerEventQueue
+  { playerEvents :: TQueue Event
+  , playerEventMVar :: TMVar UUID
+  }
+
+newtype MPlayerEventQueue = MPlayerEventQueue (Maybe PlayerEventQueue)
+fromMPEQ :: MPlayerEventQueue -> Maybe PlayerEventQueue
+fromMPEQ (MPlayerEventQueue a) = a
+
+instance SafeCopy (MPlayerEventQueue) where
+  putCopy _ = contain $ safePut (MPlayerEventQueue Nothing)
+  getCopy = contain $ return (MPlayerEventQueue Nothing)
 
 data Player
   = Player
@@ -28,20 +45,24 @@ data Player
   , playerDraft :: [Card]
   , playerPool :: [Card]
   , playerPicked :: Bool
-  , playerEvents :: TQueue Event
-  , playerEventMVar :: TMVar UUID
+  , playerEventQueue :: MPlayerEventQueue
   }
+deriveSafeCopy 1 'base ''Player
 
-defaultPlayer :: TQueue Event -> TMVar UUID -> Player
-defaultPlayer queue mvar
+defaultPlayer :: Player
+defaultPlayer
   = Player
   { playerName = "Trixie Lulamoon"
   , playerDraft = []
   , playerPool = []
   , playerPicked = False
-  , playerEvents = queue
-  , playerEventMVar = mvar
+  , playerEventQueue = (MPlayerEventQueue Nothing)
   }
+
+instance SafeCopy UUID where
+  putCopy = contain . safePut . toWords
+  getCopy = contain $ uncurry4 fromWords <$> safeGet
+    where uncurry4 f (a, b, c, d) = f a b c d
 
 data Room
   = Room
@@ -51,6 +72,7 @@ data Room
   , roomHost :: UUID
   , roomDirection :: Direction
   }
+deriveSafeCopy 1 'base ''Room
 
 createRoom :: [BoosterType] -> Room
 createRoom btype
@@ -62,14 +84,24 @@ createRoom btype
   , roomDirection = DLeft
   }
 
-addPlayer :: UUID -> TQueue Event -> TMVar UUID -> Room -> Room
-addPlayer uuid queue tmvar room = room { roomPlayers = M.insert uuid (defaultPlayer queue tmvar) (roomPlayers room) }
+addPlayer :: UUID -> Room -> Room
+addPlayer uuid room = room { roomPlayers = M.insert uuid defaultPlayer (roomPlayers room) }
+
+initEventQueue :: UUID -> TVar Room -> STM PlayerEventQueue
+initEventQueue uuid troom = do
+  room <- readTVar troom
+  let pl = uuid `M.lookup` roomPlayers room
+  case pl >>= fromMPEQ . playerEventQueue of
+    Just eq -> return eq
+    Nothing -> do
+      queue <- newTQueue
+      mvar <- newEmptyTMVar
+      let eq = PlayerEventQueue queue mvar
+      modifyTVar troom (modifyPlayer uuid (\p -> p { playerEventQueue = MPlayerEventQueue $ Just eq }))
+      return eq
 
 addPlayerSTM :: UUID -> TVar Room -> STM ()
-addPlayerSTM uuid room = do
-  queue <- newTQueue
-  mvar <- newEmptyTMVar
-  modifyTVar room (addPlayer uuid queue mvar)
+addPlayerSTM uuid = flip modifyTVar (addPlayer uuid)
 
 addPlayerIO :: UUID -> TVar Room -> IO ()
 addPlayerIO uuid = atomically . addPlayerSTM uuid
@@ -77,55 +109,42 @@ addPlayerIO uuid = atomically . addPlayerSTM uuid
 modifyPlayer :: UUID -> (Player -> Player) -> Room -> Room
 modifyPlayer uuid f room = room { roomPlayers = M.adjust f uuid (roomPlayers room) }
 
-broadcastEvent :: Event -> Room -> STM ()
-broadcastEvent e
-  = sequence_
-  . map (flip writeTQueue e . playerEvents)
-  . M.elems 
+broadcastEvent :: Event -> TVar Room -> STM ()
+broadcastEvent e troom = readTVar troom >>= sequence_
+  . map (flip writeTQueue e . playerEvents <=< flip initEventQueue troom)
+  . M.keys
   . roomPlayers
-
-broadcastEventTVar :: Event -> TVar Room -> STM ()
-broadcastEventTVar e troom = do
-  room <- readTVar troom
-  broadcastEvent e room
 
 newEventListener :: UUID -> TVar Room -> IO UUID
 newEventListener uuid troom = do
   myuid <- nextRandom
-  room <- atomically $ readTVar troom
-  let pl = (roomPlayers room) M.! uuid -- TODO: Get rid of M.!
-      tmvar = playerEventMVar pl
   atomically $ do
+    tmvar <- playerEventMVar <$> initEventQueue uuid troom
     em <- isEmptyTMVar tmvar
     if em
     then putTMVar tmvar myuid
     else void $ swapTMVar tmvar myuid
   return myuid
 
-nextEvent :: UUID -> UUID -> TVar Room -> IO (Maybe Event)
+nextEvent :: UUID -> UUID -> TVar Room -> STM (Maybe Event)
 nextEvent myuid uuid troom = do
-  room <- atomically $ readTVar troom
-  let pl = (roomPlayers room) M.! uuid -- TODO: Get rid of M.!
-      tmvar = playerEventMVar pl
-      tq = playerEvents pl
-  atomically $ do
-    e <- readTQueue $ tq
-    mholduid <- tryReadTMVar tmvar
-    case mholduid of
-      Just holduid -> do
-        if holduid == myuid
-        then return $ Just e
-        else do
-          unGetTQueue (playerEvents pl) e
-          return Nothing
-      Nothing -> return $ Just e
+  eq <- initEventQueue uuid troom
+  let
+    tq = playerEvents eq
+    tmvar = playerEventMVar eq
+  e <- readTQueue $ tq
+  mholduid <- tryReadTMVar tmvar
+  case mholduid of
+    Just holduid -> do
+      if holduid == myuid
+      then return $ Just e
+      else do
+        unGetTQueue tq e
+        return Nothing
+    Nothing -> return $ Just e
 
 sendEvent :: Event -> UUID -> TVar Room -> STM ()
-sendEvent e uuid = sendEvent' e uuid <=< readTVar
-
-sendEvent' :: Event -> UUID -> Room -> STM ()
-sendEvent' e uuid room = maybe (return ()) (flip writeTQueue e) tq
-  where tq = playerEvents <$> M.lookup uuid (roomPlayers room)
+sendEvent e uuid = flip writeTQueue e . playerEvents <=< initEventQueue uuid
 
 crackBooster :: MonadRandom m => CardDatabase -> Room -> m Room
 crackBooster db room = if null (roomBoosters room) then return room else do

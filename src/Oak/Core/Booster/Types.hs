@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Oak.Core.Booster.Types where
 
 import Data.Text (Text, unpack)
@@ -6,6 +7,7 @@ import qualified Data.Set as S
 import Web.Internal.HttpApiData
 import Control.Monad (mzero)
 import Data.Aeson
+import Data.SafeCopy
 
 data Rarity -- Darling
   = Fixed
@@ -17,6 +19,18 @@ data Rarity -- Darling
   | UltraRare
   | RoyalRare
   deriving (Eq, Ord)
+deriveSafeCopy 1 'base ''Rarity
+
+instance Show Rarity where
+  show Common      = "C"
+  show Uncommon    = "U"
+  show Rare        = "R"
+  show SuperRare   = "SR"
+  show UltraRare   = "UR"
+  show RoyalRare   = "RR"
+  show Fixed       = "F"
+  show Promotional = "P"
+
 
 data Expansion
   = Premiere
@@ -30,6 +44,7 @@ data Expansion
   | CelestialSolstice
   | GenericFixed
   deriving (Eq, Ord, Show)
+deriveSafeCopy 1 'base ''Expansion
 
 data Card =
   Card
@@ -39,6 +54,11 @@ data Card =
   , cardNumber :: Text
   }
   deriving (Eq, Ord)
+deriveSafeCopy 1 'base ''Card
+
+instance Show Card where
+  show (Card r s n i) = show s ++ " " ++ show i ++ " " ++ show r ++ " " ++ unpack n
+
 
 data BoosterType
   = PremiereBooster
@@ -50,16 +70,7 @@ data BoosterType
   | MarksInTimeBooster
   | CustomBooster (S.Set Card) [(Rarity, Rational)]
   deriving (Eq, Show)
-
-instance Show Rarity where
-  show Common      = "C"
-  show Uncommon    = "U"
-  show Rare        = "R"
-  show SuperRare   = "SR"
-  show UltraRare   = "UR"
-  show RoyalRare   = "RR"
-  show Fixed       = "F"
-  show Promotional = "P"
+deriveSafeCopy 1 'base ''BoosterType
 
 setToLetters :: Expansion -> String
 setToLetters Premiere           = "pr"
@@ -80,9 +91,6 @@ lettersToSet "eo" = Just EquestrianOdysseys
 lettersToSet "hm" = Just HighMagic
 lettersToSet "mt" = Just MarksInTime
 lettersToSet _ = Nothing
-
-instance Show Card where
-  show (Card r s n i) = show s ++ " " ++ show i ++ " " ++ show r ++ " " ++ unpack n
 
 instance FromHttpApiData BoosterType where
   parseUrlPiece str

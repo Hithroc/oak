@@ -63,7 +63,8 @@ app = do
     get ("debug" <//> "exception") $ error "[](/rdwut)"
     get ("debug" <//> "session") $ do
       sess <- readSession
-      text . T.pack . show $ sess
+      sessid <- getSessionId
+      text . T.pack $ show sess <> show sessid
     get ("debug" <//> "status" <//> var) $ \code -> do
       setStatus $ mkStatus code "Unknown Code"
       text "Error"
