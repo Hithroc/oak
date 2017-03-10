@@ -161,7 +161,7 @@ roomComponent = do
     uuid <- getUserUUID <$> readSession
     let
       wsLoop conn = do
-        me <- atomically $ nextEvent uuid troom
+        me <- nextEvent uuid troom
         flip (maybe (sendClose conn ("Another connection was opened" :: T.Text))) me $ \e -> do
           room <- atomically $ readTVar troom
           let 
@@ -181,8 +181,8 @@ roomComponent = do
           wsLoop conn
       wsApp penconn = do
         conn <- acceptRequest penconn
+        atomically $ terminateEventQueue uuid troom
         atomically $ do
-          terminateEventQueue uuid troom
           sendEvent CardListUpdate uuid troom
           sendEvent PlayersUpdate uuid troom
         wsLoop conn

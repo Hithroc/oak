@@ -123,11 +123,11 @@ broadcastEvent e troom = readTVar troom >>= sequence_
   . M.keys
   . roomPlayers
 
-nextEvent :: UUID -> TVar Room -> STM (Maybe Event)
+nextEvent :: UUID -> TVar Room -> IO (Maybe Event)
 nextEvent uuid troom = do
-  eq <- initEventQueue uuid troom
+  eq <- atomically $ initEventQueue uuid troom
   let tq = playerEvents eq
-  e <- readTQueue $ tq
+  e <- atomically $ readTQueue $ tq
   case e of
     TerminateListener -> return Nothing
     _ -> return $ Just e
