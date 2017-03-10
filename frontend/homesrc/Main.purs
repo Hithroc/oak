@@ -61,7 +61,7 @@ mane =
     render :: ManeState -> H.ParentHTML ManeQuery BoosterSelectorQuery Int (ManeAff m)
     render st =
       HH.div [ HP.class_ (ClassName "create-room-block")] $
-      [ HH.div [HP.class_ (ClassName "roomcount")] [ HH.text $ "Amount of opened rooms: " <> maybe "0" show st.roomCount]
+      [ HH.div [HP.class_ (ClassName "roomcount")] [ HH.text $ "Number of active rooms: " <> maybe "0" show st.roomCount]
       , HH.button [ HE.onClick (HE.input_ StartGame) ] [ HH.text "Create Room" ]
       , HH.div [HP.class_ (ClassName "booster-buttons")]
         [ HH.button [ HP.disabled $ A.length st.boosters >= 8, HE.onClick (HE.input_ AddBooster) ] [ HH.text "Add pack" ]
