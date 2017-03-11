@@ -75,7 +75,7 @@ runApp cfg db = do
              . setHost (fromString $ cfg_host cfg)
              . setInstallShutdownHandler installShutdownHandler
              . setTimeout 3600
-             . setGracefulShutdownTimeout (Just 10)
+             . setGracefulShutdownTimeout (Just 5)
              $ defaultSettings
   srooms <- try (BS.readFile "rooms.bin")
   case srooms of
