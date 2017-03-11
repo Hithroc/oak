@@ -21,6 +21,8 @@ import Web.Spock.Worker
 import Network.Wai.Handler.WebSockets
 import Network.Wai
 import Network.WebSockets
+import Data.Time.Clock
+import Control.Concurrent
 
 import Oak.Web.Utils
 import Oak.Web.Types
@@ -100,22 +102,33 @@ roomComponent = do
     joinR       = roomR <//> "join"
 
     errorHandler = ErrorHandlerIO (\_ _ -> return WorkError)
-    workHandler (rid,trooms) = do
-      liftIO . atomically . modifyTVar trooms $ (IM.delete rid)
-      return WorkComplete
+    workHandler () = do
+      trooms <- stateRooms <$> getState
+      liftIO $ do
+        curtime <- getCurrentTime
+        diff <- atomically $ do
+          rooms <- traverse readTVar <=< readTVar $ trooms
+          let
+            activeRooms = IM.filter (\x -> diffUTCTime curtime (roomLastActive x) < 120) $ rooms
+          modifyTVar trooms $ flip IM.intersection activeRooms
+          return (IM.size rooms - IM.size activeRooms)
+        unless (diff == 0) . putStrLn $ "Sweep thread: cleaned " ++ show diff ++ " rooms"
 
-  worker <- newWorker $ WorkerDef (WorkerConfig (1000) (WorkerConcurrentBounded 4)) workHandler errorHandler
+      return $ WorkRepeatIn 60
+
+  worker <- newWorker $ WorkerDef (WorkerConfig 1000 WorkerConcurrentUnbounded) workHandler errorHandler
+  liftIO $ addWork WorkNow () worker
 
   get createRoomR $ \boosters -> do
     liftIO . putStrLn $ "createroom: " ++ show boosters
     uuid <- getUserUUID <$> readSession
     rid <- nextRoomNumber
     trooms <- stateRooms <$> getState
+    curtime <- liftIO $ getCurrentTime
     liftIO . atomically $ do
-      troom <- newTVar . (\x -> x { roomHost = uuid }) $ createRoom boosters
+      troom <- newTVar . (\x -> x { roomHost = uuid }) $ createRoom boosters curtime
       modifyTVar trooms $ (IM.insert rid troom)
       addPlayerSTM uuid $ troom
-    addWork (WorkIn 3600) (rid,trooms) worker -- Clean the room after an hour
     redirect (renderRoute roomR (toHashid rid))
 
   get roomR $ \(ruid :: T.Text) -> directoryHook $ withRoom ruid $ \_ -> do
@@ -177,17 +190,23 @@ roomComponent = do
                 $ room
               ServerShutdown -> encode shutdownPayload
               _ -> encode unknownPayload
+          sendPing conn ("" :: T.Text)
           sendTextData conn pl
           wsLoop conn
       wsApp penconn = do
         conn <- acceptRequest penconn
+        forkPingThread conn 5
         atomically $ terminateEventQueue uuid troom
         atomically $ do
           sendEvent CardListUpdate uuid troom
           sendEvent PlayersUpdate uuid troom
-        wsLoop conn
+        void . forkIO $ wsLoop conn
+        forever . void $ receiveDataMessage conn
       backupApp _ respond = respond $ responseLBS status400 [] "Not a WebSocket request"
-    respondApp $ websocketsOr defaultConnectionOptions wsApp backupApp
+      customPong = do
+        curtime <- getCurrentTime
+        atomically $ modifyTVar troom (\r -> r { roomLastActive = curtime } )
+    respondApp $ websocketsOr (defaultConnectionOptions { connectionOnPong = customPong }) wsApp backupApp
 
   get joinR $ \ruid -> flip (withRoom' ruid) (const $ text "Already joined") $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession

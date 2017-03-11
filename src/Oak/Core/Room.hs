@@ -10,6 +10,7 @@ import Control.Concurrent.STM
 import Data.SafeCopy
 import Data.UUID.SafeCopy ()
 import Data.Serialize (Get)
+import Data.Time.Clock
 
 import Oak.Core.Booster
 
@@ -74,18 +75,20 @@ data Room
   , roomClosed :: Bool 
   , roomHost :: UUID
   , roomDirection :: Direction
+  , roomLastActive :: UTCTime
   }
   deriving Show
 deriveSafeCopy 1 'base ''Room
 
-createRoom :: [BoosterType] -> Room
-createRoom btype
+createRoom :: [BoosterType] -> UTCTime -> Room
+createRoom btype time
   = Room 
   { roomPlayers = M.empty
   , roomBoosters = btype
   , roomClosed = False
   , roomHost = nil
   , roomDirection = DLeft
+  , roomLastActive = time
   }
 
 addPlayer :: UUID -> Room -> Room
