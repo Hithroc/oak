@@ -23,6 +23,7 @@ executable oak
                        Oak.Config
                        Oak.Config.TH
                        Oak.Web
+                       Oak.Web.SessionStore
                        Oak.Web.Components
                        Oak.Web.Components.Room
                        Oak.Web.Types
@@ -34,7 +35,10 @@ executable oak
                       ,ScopedTypeVariables
                       ,TupleSections
                       ,DataKinds
+                      ,KindSignatures
+                      ,TypeFamilies
                       ,FlexibleInstances
+                      ,FlexibleContexts
   build-depends:       base >= 4.7 && < 5
                       ,text >= 1.2.2.1
                       ,lens >= 4.15.1
@@ -65,3 +69,6 @@ executable oak
                       ,safecopy >= 0.9.2
                       ,cereal >= 0.5.4.0
                       ,unix >= 2.7.2.1
+                      ,acid-state >= 0.14.2
+                      ,mtl >= 2.2.1
+                      ,time >= 1.6.0.1

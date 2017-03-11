@@ -1,4 +1,5 @@
 .stack-work/
 *.json
 *.bin
+acid_sessions/
 !frontend/bower.json

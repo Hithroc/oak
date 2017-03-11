@@ -21,6 +21,7 @@ import qualified Data.Serialize as S
 import Oak.Core.Room (Room)
 import System.Posix.Signals
 import Control.Exception
+import Oak.Web.SessionStore
 
 import Oak.Web.Types
 import Oak.Web.Components
@@ -84,8 +85,10 @@ runApp cfg db = do
       case t' of
         Left e -> putStrLn $ "Failed to deserialize rooms: " ++ e
         Right rooms -> atomically $ readTVar rooms >>= writeTVar trooms
+  sessStore <- oakSessionStore
   spockCfg <- defaultSpockCfg (UserSession UUID.nil) PCNoDatabase (GlobalState trooms db)
-  spockapp <- spockAsApp (spock (spockCfg { spc_errorHandler = customError }) app)
+  let newSessionCfg s = s { sc_store = SessionStoreInstance sessStore }
+  spockapp <- spockAsApp (spock (spockCfg { spc_errorHandler = customError, spc_sessionCfg = newSessionCfg (spc_sessionCfg spockCfg) }) app)
   runSettings (settings) (spockapp)
 
 app :: SpockM () UserSession GlobalState ()
