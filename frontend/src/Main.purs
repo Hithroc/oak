@@ -2,6 +2,7 @@ module Main where
 
 import Prelude
 import Control.Monad.Aff (Aff, launchAff)
+import Control.Monad.Aff as AFF
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Aff.Console (log)
@@ -44,7 +45,9 @@ import Data.Tuple
 import Data.Either
 
 
-type ManeState = Unit
+type ManeState
+  = { banner :: Maybe String
+    }
 
 type CardListObj
   = { draft :: Array Card
@@ -89,10 +92,10 @@ type ManeChildSlot = Unit \/ Unit \/ Unit \/ Void
 type Effects e = (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW, alert :: ALERT, ws :: WEBSOCKET| e)
 type Effects2 e = Effects (dom :: DOM, ref :: REF, avar :: AVAR, err :: EXCEPTION | e)
 type ManeAff eff = Aff (Effects2 eff)
-mane :: forall m. H.Component HH.HTML ManeQuery ManeState Void (ManeAff m)
+mane :: forall m. H.Component HH.HTML ManeQuery Unit Void (ManeAff m)
 mane =
   H.lifecycleParentComponent
-  { initialState : const unit
+  { initialState : const { banner : Nothing }
   , render
   , eval
   , initializer: Just (H.action Initialize)
@@ -102,7 +105,8 @@ mane =
   where
     render :: ManeState -> H.ParentHTML ManeQuery ManeChildQuery ManeChildSlot (ManeAff m)
     render st =
-      HH.div [ HP.class_ (ClassName "mane")]
+      HH.div [ HP.class_ (ClassName "mane")] $
+        (maybe [] (\x -> [ HH.div [HP.class_ (ClassName "banner")] [ HH.text x ] ]) st.banner) <>
         [ HH.div [HP.class_ (ClassName "bar")] 
           [ HH.slot' CP.cp1 unit playerList unit absurd
           , HH.div [HP.class_ (ClassName "menu")]
@@ -122,12 +126,13 @@ mane =
     eval (Initialize next) = eval (EventLoop next)
     eval (EventLoop next) = do
       win <- H.liftEff $ window
-      loc <- H.liftEff $ L.href<=<W.location $ win
+      loc <- H.liftEff $ W.location win
+      locHref <- H.liftEff $ L.href loc
       let
         alert' = flip alert win
         wsurl = replaceAll (Pattern "https://") (Replacement "wss://") 
              <<<replaceAll (Pattern "http://") (Replacement "ws://")
-              $ loc
+              $ locHref
       H.liftAff $ log wsurl
       avar <- H.liftAff makeVar
       Connection socket <- H.liftEff $ newWebSocket (URL $ wsurl <> "events") []
@@ -152,6 +157,13 @@ mane =
             case fst payload of
               "player_list" -> eval (ProcessEvent (PlayersUpdate (snd payload)) next)
               "card_list" -> eval (ProcessEvent (CardListUpdate (snd payload)) next)
+              "shutdown" -> do
+                H.liftEff $ socket.onclose $= \event -> pure unit
+                H.liftEff $ socket.onerror $= \event -> pure unit
+                H.liftEff $ socket.close
+                H.modify $ _ { banner = Just "Server is shutting down. Please wait 10 seconds until it restarts. The page will be reloaded automatically." }
+                H.liftAff $ AFF.later' 10000 (log "Test" >>= \_ -> void $ AFF.liftEff' $ L.reload loc)
+                pure next
               _ -> pure next
       pure next
 
