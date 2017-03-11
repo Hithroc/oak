@@ -109,7 +109,7 @@ roomComponent = do
         diff <- atomically $ do
           rooms <- traverse readTVar <=< readTVar $ trooms
           let
-            activeRooms = IM.filter (\x -> diffUTCTime curtime (roomLastActive x) < 120) $ rooms
+            activeRooms = IM.filter (\x -> diffUTCTime curtime (roomLastActive x) < 900) $ rooms
           modifyTVar trooms $ flip IM.intersection activeRooms
           return (IM.size rooms - IM.size activeRooms)
         unless (diff == 0) . putStrLn $ "Sweep thread: cleaned " ++ show diff ++ " rooms"
@@ -195,7 +195,7 @@ roomComponent = do
           wsLoop conn
       wsApp penconn = do
         conn <- acceptRequest penconn
-        forkPingThread conn 5
+        forkPingThread conn 60
         atomically $ terminateEventQueue uuid troom
         atomically $ do
           sendEvent CardListUpdate uuid troom
