@@ -34,6 +34,9 @@ mapSet :: Ord a => [(a -> Bool, a -> a)] -> S.Set a -> S.Set a
 mapSet [] s = s
 mapSet ((p, f) : xs) s = (S.map f . S.filter p $ s) `S.union` mapSet xs s
 
+fixDatabase :: CardDatabase -> CardDatabase
+fixDatabase (CardDatabase db) = CardDatabase . mapSet royalRareMapping $ db
+
 instance FromJSON CardDatabase where
   parseJSON (Object v) = do
     arr <- v .: "data"

@@ -41,6 +41,7 @@ data CardAPI
   = CardAPI
   { card_set :: T.Text
   , card_num :: T.Text
+  , card_rarity :: T.Text
   }
 $(deriveJSON defaultOptions { fieldLabelModifier = drop 5 } ''CardAPI)
 
@@ -75,7 +76,7 @@ playerObj :: Player -> PlayerAPI
 playerObj = liftA2 PlayerAPI playerName playerPicked
 
 cardObj :: Card -> CardAPI
-cardObj = liftA2 CardAPI (T.pack . setToLetters . cardExpansion) cardNumber
+cardObj = liftA3 CardAPI (T.pack . setToLetters . cardExpansion) cardNumber (T.pack . show . cardRarity)
 
 cardListObj :: Player -> CardListAPI
 cardListObj = liftA3 CardListAPI (map cardObj . playerDraft) (map cardObj . playerPool) (playerPicked)

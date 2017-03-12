@@ -22,7 +22,7 @@ main = do
       maybe (return ()) (setCurrentDirectory) (cfg_root cfg)
       db <- eitherDecode <$> BS.readFile ("data/db.json")
       cycles <- eitherDecode <$> BS.readFile ("data/cycles.json")
-      case db >>= \y -> fmap (\x -> (y,x)) cycles of
+      case fmap fixDatabase db >>= \y -> fmap (\x -> (y,x)) cycles of
         Left e -> hPutStrLn stderr e
         Right (db', cycles') -> do
           runApp cfg db' (convertBoosterCycles db' cycles')
