@@ -19,6 +19,7 @@ executable oak
   other-modules:       Oak.Core.Booster
                        Oak.Core.Booster.Database
                        Oak.Core.Booster.Types
+                       Oak.Core.Booster.Cycles
                        Oak.Core.Room
                        Oak.Config
                        Oak.Config.TH
@@ -39,6 +40,8 @@ executable oak
                       ,TypeFamilies
                       ,FlexibleInstances
                       ,FlexibleContexts
+                      ,BangPatterns
+                      ,DeriveGeneric
   build-depends:       base >= 4.7 && < 5
                       ,text >= 1.2.2.1
                       ,lens >= 4.15.1
@@ -72,3 +75,5 @@ executable oak
                       ,acid-state >= 0.14.2
                       ,mtl >= 2.2.1
                       ,time >= 1.6.0.1
+                      ,deepseq >= 1.4.2.0
+                      ,streams >= 3.3
