@@ -18,6 +18,7 @@ data CardCycle = CardCycle Int (S.Stream Card)
 instance Show CardCycle where
   show (CardCycle n cycle) = "CardCycle " ++ show n ++ " " ++ show (S.take n cycle)
 data JSONCardCycle = JSONCardCycle (NL.NonEmpty Text)
+  deriving Show
 type RarityCycles = M.Map Rarity CardCycle
 type BoosterCycles = M.Map BoosterType RarityCycles
 
@@ -29,7 +30,7 @@ getCycledBooster xs = foldr (\(n, (CardCycle len cycle)) acc -> fmap (CardCycle 
 
 instance FromJSON JSONCardCycle where
   parseJSON (Array v) = do
-    l <- sequence . V.toList . fmap parseJSON $ v 
+    l <- sequence . V.toList . fmap parseJSON $ v
     maybe mzero (return . JSONCardCycle) . NL.nonEmpty $ l
   parseJSON _ = mzero
  
@@ -38,6 +39,23 @@ convertJsonCycle db (JSONCardCycle cycle) = CardCycle (length cycle) . S.cycle .
   where
     lookupDb n = head . filter ((==n) . cardNumber) . Set.toList $ db
 
+
+filterExpansion :: Expansion -> Set.Set Card -> Set.Set Card
+filterExpansion expansion = Set.filter ((==expansion) . cardExpansion)
+
+boosterCards :: BoosterType -> Set.Set Card -> Set.Set Card
+boosterCards (CustomBooster cards _)   = const cards
+boosterCards PremiereBooster           = filterExpansion Premiere
+boosterCards CanterlotNightsBooster    = filterExpansion CanterlotNights
+boosterCards TheCrystalGamesBooster    = filterExpansion TheCrystalGames
+boosterCards AbsoluteDiscordBooster    = filterExpansion AbsoluteDiscord
+boosterCards EquestrianOdysseysBooster = filterExpansion EquestrianOdysseys
+boosterCards HighMagicBooster          = filterExpansion HighMagic
+boosterCards MarksInTimeBooster        = filterExpansion MarksInTime
+
+convertBoosterCycles :: CardDatabase -> M.Map BoosterType (M.Map Rarity JSONCardCycle) -> BoosterCycles
+convertBoosterCycles (CardDatabase db) = M.mapWithKey (\e v -> fmap (convertJsonCycle (boosterCards e db)) v)
+
 randomizeCycle :: MonadRandom m => CardCycle -> m CardCycle
 randomizeCycle c@(CardCycle len cycle) = if len <= 0 then return c else do
   n <- getRandomR (0, len)
@@ -45,5 +63,5 @@ randomizeCycle c@(CardCycle len cycle) = if len <= 0 then return c else do
 
 makeUniformCycle :: MonadRandom m => Set.Set Card -> m CardCycle
 makeUniformCycle cards = do
-  stream <- sequence . S.iterate id . uniform . Set.toList $ cards
-  return (CardCycle 0 stream)
+  stream <- getRandomRs (0, Set.size cards - 1)
+  return (CardCycle 0 (fmap (flip Set.elemAt cards) (S.cycle . NL.fromList $ stream)))

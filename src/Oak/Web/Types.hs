@@ -16,6 +16,7 @@ data GlobalState
   = GlobalState
   { stateRooms :: Rooms
   , cardDb :: CardDatabase
+  , cardCycles :: BoosterCycles
   }
 data UserSession
   = UserSession

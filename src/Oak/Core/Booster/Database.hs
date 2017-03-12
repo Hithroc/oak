@@ -28,7 +28,6 @@ royalRareMapping =
   ]
   where
     makeRR c = c { cardRarity = RoyalRare }
-    matchCard :: Expansion -> Text -> Card -> Bool
     matchCard exp num c = cardExpansion c == exp && cardNumber c == num
 
 mapSet :: Ord a => [(a -> Bool, a -> a)] -> S.Set a -> S.Set a
