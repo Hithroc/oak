@@ -8,6 +8,8 @@ import Web.Internal.HttpApiData
 import Control.Monad (mzero)
 import Data.Aeson
 import Data.SafeCopy
+import GHC.Generics (Generic)
+import Control.DeepSeq (NFData)
 
 data Rarity -- Darling
   = Fixed
@@ -18,8 +20,10 @@ data Rarity -- Darling
   | SuperRare
   | UltraRare
   | RoyalRare
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic)
 deriveSafeCopy 1 'base ''Rarity
+
+instance NFData Rarity
 
 instance Show Rarity where
   show Common      = "C"
@@ -43,8 +47,10 @@ data Expansion
   | RockNRave
   | CelestialSolstice
   | GenericFixed
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
 deriveSafeCopy 1 'base ''Expansion
+
+instance NFData Expansion
 
 data Card =
   Card
@@ -53,8 +59,10 @@ data Card =
   , cardName :: Text
   , cardNumber :: Text
   }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic)
 deriveSafeCopy 1 'base ''Card
+
+instance NFData Card
 
 instance Show Card where
   show (Card r s n i) = show s ++ " " ++ show i ++ " " ++ show r ++ " " ++ unpack n
@@ -69,7 +77,7 @@ data BoosterType
   | HighMagicBooster
   | MarksInTimeBooster
   | CustomBooster (S.Set Card) [(Rarity, Rational)]
-  deriving (Eq, Show)
+  deriving (Eq, Show, Ord)
 deriveSafeCopy 1 'base ''BoosterType
 
 setToLetters :: Expansion -> String

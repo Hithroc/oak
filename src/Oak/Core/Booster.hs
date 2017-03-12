@@ -2,11 +2,13 @@ module Oak.Core.Booster (module X, generateBooster) where
 
 import Oak.Core.Booster.Types as X
 import Oak.Core.Booster.Database as X
+import Oak.Core.Booster.Cycles
 
 import Control.Monad.Random
 import Data.Ratio
 import Control.Spoon
 import qualified Data.Set as S
+import Data.List
 
 cloudHatePredicate :: forall a. a -> Bool
 cloudHatePredicate = const True
@@ -19,18 +21,18 @@ boosterWeights AbsoluteDiscordBooster = [(UltraRare, 1 % 11)]
 boosterWeights EquestrianOdysseysBooster
   = [ (UltraRare, 4 % 36)
     , (SuperRare, 8 % 36)
---    , (RoyalRare, 1 % 216)
+    , (RoyalRare, 1 % 216)
     ]
 boosterWeights HighMagicBooster
   = [ (UltraRare, 4 % 36)
   , (SuperRare, 8 % 36)
---  , (RoyalRare, 1 % 216)
+  , (RoyalRare, 1 % 216)
   ]
 
 boosterWeights MarksInTimeBooster
   = [ (UltraRare, 4 % 36)
     , (SuperRare, 8 % 36)
---    , (RoyalRare, 1 % 216)
+    , (RoyalRare, 1 % 216)
     ]
 boosterWeights (CustomBooster _ x) = x
 
@@ -67,13 +69,15 @@ pickRarity :: MonadRandom m => [(Rarity, Rational)] -> m Rarity
 pickRarity xs = fromList $ (Common, comr) : xs -- MonadRandom's fromList
   where comr = max 0 . foldl (-) 1 . map snd $ xs
 
-generateBooster' :: MonadRandom m => [(Rarity, Rational)] -> S.Set Card -> m [Maybe Card]
-generateBooster' ws cards = do
-  r <- pickRarity ws
-  let rarities = replicate 7 Common
-              ++ [r, Rare]
-              ++ replicate 3 Uncommon
-  pickPred (map isRarity rarities) cards
-
-generateBooster :: MonadRandom m => BoosterType -> CardDatabase -> m [Maybe Card]
-generateBooster btype (CardDatabase cards) = generateBooster' (boosterWeights btype) (boosterCards btype cards)
+generateBooster :: MonadRandom m => CardDatabase -> BoosterCycles -> BoosterType -> m [Card]
+generateBooster (CardDatabase cards) bcycles btype = do
+  r <- pickRarity (boosterWeights btype)
+  let rarities = replicate 7 Common ++ [r, Rare] ++ replicate 3 Uncommon
+      groupedRarities :: [(Int, Rarity)]
+      groupedRarities = fmap (\x -> (length x, head x)) . group $ rarities
+      getCycle :: MonadRandom m => Rarity -> m CardCycle
+      getCycle rar = case lookupCycle btype rar bcycles of
+                   Nothing -> makeUniformCycle (boosterCards btype cards)
+                   Just cycle -> return cycle
+  (cycles :: [(Int, CardCycle)]) <- traverse (traverse (randomizeCycle <=< getCycle)) groupedRarities
+  return . concat . map fst . getCycledBooster $ cycles
