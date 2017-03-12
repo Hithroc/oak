@@ -57,8 +57,8 @@ deserializeRooms str = case S.runGet (safeGet :: S.Get (IM.IntMap Room)) str of
   Left e -> return $ Left e
   Right rooms -> fmap Right . newTVar <=< sequence . fmap newTVar $ rooms
 
-runApp :: Config -> CardDatabase -> IO ()
-runApp cfg db = do
+runApp :: Config -> CardDatabase -> BoosterCycles -> IO ()
+runApp cfg db bcycles = do
   trooms <- atomically $ newTVar (IM.empty)
   let
     shutdownHandler :: IO ()
@@ -86,7 +86,7 @@ runApp cfg db = do
         Left e -> putStrLn $ "Failed to deserialize rooms: " ++ e
         Right rooms -> atomically $ readTVar rooms >>= writeTVar trooms
   sessStore <- oakSessionStore
-  spockCfg <- defaultSpockCfg (UserSession UUID.nil) PCNoDatabase (GlobalState trooms db)
+  spockCfg <- defaultSpockCfg (UserSession UUID.nil) PCNoDatabase (GlobalState trooms db bcycles)
   let newSessionCfg s = s { sc_store = SessionStoreInstance sessStore }
   spockapp <- spockAsApp (spock (spockCfg { spc_errorHandler = customError, spc_sessionCfg = newSessionCfg (spc_sessionCfg spockCfg) }) app)
   runSettings (settings) (spockapp)

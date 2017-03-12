@@ -12,6 +12,31 @@ import Oak.Core.Booster.Types
 data CardDatabase = CardDatabase (S.Set Card)
   deriving Show
 
+
+-- Hardoced RR mappings
+royalRareMapping :: [(Card -> Bool, Card -> Card)]
+royalRareMapping =
+  [ (matchCard EquestrianOdysseys "207", makeRR)
+  , (matchCard EquestrianOdysseys "208", makeRR)
+
+  , (matchCard HighMagic          "149", makeRR)
+  , (matchCard HighMagic          "147", makeRR)
+  , (matchCard HighMagic          "145", makeRR)
+
+  , (matchCard MarksInTime        "139", makeRR)
+  , (matchCard MarksInTime        "141", makeRR)
+  ]
+  where
+    makeRR c = c { cardRarity = RoyalRare }
+    matchCard exp num c = cardExpansion c == exp && cardNumber c == num
+
+mapSet :: Ord a => [(a -> Bool, a -> a)] -> S.Set a -> S.Set a
+mapSet [] s = s
+mapSet ((p, f) : xs) s = (S.map f . S.filter p $ s) `S.union` mapSet xs s
+
+fixDatabase :: CardDatabase -> CardDatabase
+fixDatabase (CardDatabase db) = CardDatabase . mapSet royalRareMapping $ db
+
 instance FromJSON CardDatabase where
   parseJSON (Object v) = do
     arr <- v .: "data"

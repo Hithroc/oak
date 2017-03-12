@@ -8,6 +8,9 @@ import Web.Internal.HttpApiData
 import Control.Monad (mzero)
 import Data.Aeson
 import Data.SafeCopy
+import GHC.Generics (Generic)
+import Control.DeepSeq (NFData)
+import Text.Read (readMaybe)
 
 data Rarity -- Darling
   = Fixed
@@ -18,8 +21,13 @@ data Rarity -- Darling
   | SuperRare
   | UltraRare
   | RoyalRare
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Read, Generic)
 deriveSafeCopy 1 'base ''Rarity
+
+instance FromJSONKey Rarity where
+  fromJSONKey = FromJSONKeyTextParser (maybe mzero return . readMaybe . T.unpack)
+
+instance NFData Rarity
 
 instance Show Rarity where
   show Common      = "C"
@@ -30,7 +38,6 @@ instance Show Rarity where
   show RoyalRare   = "RR"
   show Fixed       = "F"
   show Promotional = "P"
-
 
 data Expansion
   = Premiere
@@ -43,8 +50,10 @@ data Expansion
   | RockNRave
   | CelestialSolstice
   | GenericFixed
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Read, Generic)
 deriveSafeCopy 1 'base ''Expansion
+
+instance NFData Expansion
 
 data Card =
   Card
@@ -53,8 +62,10 @@ data Card =
   , cardName :: Text
   , cardNumber :: Text
   }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Read, Generic)
 deriveSafeCopy 1 'base ''Card
+
+instance NFData Card
 
 instance Show Card where
   show (Card r s n i) = show s ++ " " ++ show i ++ " " ++ show r ++ " " ++ unpack n
@@ -69,8 +80,25 @@ data BoosterType
   | HighMagicBooster
   | MarksInTimeBooster
   | CustomBooster (S.Set Card) [(Rarity, Rational)]
-  deriving (Eq, Show)
+  deriving (Eq, Show, Read, Ord)
 deriveSafeCopy 1 'base ''BoosterType
+
+textToBooster :: T.Text -> Maybe BoosterType
+textToBooster "Premiere" = Just PremiereBooster
+textToBooster "CanterlotNights" = Just CanterlotNightsBooster
+textToBooster "TheCrystalGames" = Just TheCrystalGamesBooster
+textToBooster "AbsoluteDiscord" = Just AbsoluteDiscordBooster
+textToBooster "EquestrianOdysseys" = Just EquestrianOdysseysBooster
+textToBooster "HighMagic" = Just HighMagicBooster
+textToBooster "MarksInTime" = Just MarksInTimeBooster
+textToBooster _ = Nothing
+
+instance FromJSON BoosterType where
+  parseJSON (String s) = maybe mzero return $ textToBooster s
+  parseJSON _ = mzero
+
+instance FromJSONKey BoosterType where
+  fromJSONKey = FromJSONKeyTextParser (maybe mzero return . textToBooster)
 
 setToLetters :: Expansion -> String
 setToLetters Premiere           = "pr"
@@ -109,7 +137,7 @@ instance FromHttpApiData [BoosterType] where
 
 instance FromJSON Rarity where
   parseJSON (String "C")  = return Common
-  parseJSON (String "U") = return Uncommon
+  parseJSON (String "U")  = return Uncommon
   parseJSON (String "R")  = return Rare
   parseJSON (String "SR") = return SuperRare
   parseJSON (String "UR") = return UltraRare

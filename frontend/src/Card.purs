@@ -15,13 +15,15 @@ import Data.Tuple
 type Card =
   { set :: String
   , number :: String
+  , rarity :: String
   }
 
 jsonToCard :: A.Json -> Maybe Card
 jsonToCard = A.foldJsonObject Nothing $ \jmap -> do
   set <- M.lookup "set" jmap >>= A.toString
   num <- M.lookup "num" jmap >>= A.toString
-  pure { set: set, number: num }
+  rarity <- M.lookup "rarity" jmap >>= A.toString
+  pure { set: set, number: num, rarity: rarity }
 
 -- Internal representation of Card
 type CardState =
@@ -29,6 +31,7 @@ type CardState =
   , ponyid :: Tuple String String
   , fallbacked :: Boolean
   , pickid :: Int
+  , rarity :: String
   }
 
 data CardQuery a
@@ -46,7 +49,7 @@ getPonyHeadID st = Tuple (getId toUpper) (getId toLower)
   where
     st' =
       if toLower st.set == "pr" && st.number == "213" -- Applejack Farm Foremare id fix. #typonyhead
-      then { set: "pr", number: "PF2" }
+      then st { set = "pr", number = "PF2" }
       else st
     -- We want to replace minus after toUpper, because n is always lowercased for negatives in PonyHead
     -- Everything would work anyway if we replaced '-' to 'n' before uppercasing,
@@ -57,10 +60,11 @@ getPonyHeadID st = Tuple (getId toUpper) (getId toLower)
     replaceMinus = replaceAll (Pattern "-") (Replacement "n")
 
 
-getImageURL :: String -> String
-getImageURL str = base_url <> str <> ".jpg"
+getImageURL :: CardState -> String
+getImageURL st = base_url st.rarity <> st.cid <> ".jpg"
   where
-    base_url = "http://ponyhead.com/img/cards/"
+    base_url "RR" = "http://hithroc.org/mlpccg/rrimg/"
+    base_url _ = "http://ponyhead.com/img/cards/"
 
 card :: forall m. H.Component HH.HTML CardQuery (Tuple Int Card) CardMessage m
 card = 
@@ -74,13 +78,13 @@ card =
     }
   where
     initialState :: Tuple Int Card -> CardState
-    initialState c = { cid: fst $ getPonyHeadID $ snd c , ponyid: getPonyHeadID $ snd c, fallbacked: false, pickid: fst c }
+    initialState c = { cid: fst $ getPonyHeadID $ snd c , ponyid: getPonyHeadID $ snd c, fallbacked: false, pickid: fst c, rarity: _.rarity $ snd c }
     render :: CardState -> H.ComponentHTML CardQuery
     render st =
         HH.div [ HP.class_ (ClassName "card"), HE.onClick (HE.input_ Pick) ]
         [ HH.div [ HP.class_ (ClassName "image-hover-hack") ] []
         , HH.img $
-            [ HP.src $ getImageURL st.cid
+            [ HP.src $ getImageURL st
             , HP.alt (show st.fallbacked)
             , HP.class_ (ClassName "card-image")
             ] 

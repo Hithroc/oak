@@ -41,6 +41,7 @@ data CardAPI
   = CardAPI
   { card_set :: T.Text
   , card_num :: T.Text
+  , card_rarity :: T.Text
   }
 $(deriveJSON defaultOptions { fieldLabelModifier = drop 5 } ''CardAPI)
 
@@ -75,7 +76,7 @@ playerObj :: Player -> PlayerAPI
 playerObj = liftA2 PlayerAPI playerName playerPicked
 
 cardObj :: Card -> CardAPI
-cardObj = liftA2 CardAPI (T.pack . setToLetters . cardExpansion) cardNumber
+cardObj = liftA3 CardAPI (T.pack . setToLetters . cardExpansion) cardNumber (T.pack . show . cardRarity)
 
 cardListObj :: Player -> CardListAPI
 cardListObj = liftA3 CardListAPI (map cardObj . playerDraft) (map cardObj . playerPool) (playerPicked)
@@ -144,13 +145,14 @@ roomComponent = do
   get cardPickR $ \ruid pick -> withRoom ruid $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
     db <- cardDb <$> getState
+    bcycles <- cardCycles <$> getState
     room <- liftIO . atomically $ do
       modifyTVar troom (transferCard uuid pick)
       readTVar troom
     when (all playerPicked . roomPlayers $ room) . liftIO $ do
       if (all (null . playerDraft) . roomPlayers $ room)
       then do
-        room' <- evalRandTIO $ crackBooster db room
+        room' <- evalRandTIO $ crackBooster db bcycles room
         atomically $ writeTVar troom room'
       else atomically $ modifyTVar troom (rotateCards)
       atomically $ broadcastEvent CardListUpdate troom
@@ -161,11 +163,12 @@ roomComponent = do
   get startR $ \ruid -> withRoom ruid $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
     db <- cardDb <$> getState
+    bcycles <- cardCycles <$> getState
     room <- liftIO . readTVarIO $ troom
     if roomHost room /= uuid
     then setStatus forbidden403 >> text "You're not the host!"
     else unless (roomClosed room) $ do
-      room' <- liftIO . evalRandTIO $ crackBooster db room
+      room' <- liftIO . evalRandTIO $ crackBooster db bcycles room
       liftIO . atomically $ do
         writeTVar troom (room' { roomClosed = True })
         broadcastEvent CardListUpdate troom

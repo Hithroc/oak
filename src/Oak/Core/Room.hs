@@ -5,7 +5,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
 import Data.Maybe
-import Control.Monad.Random.Strict
+import Control.Monad.Random
 import Control.Concurrent.STM
 import Data.SafeCopy
 import Data.UUID.SafeCopy ()
@@ -138,15 +138,15 @@ nextEvent uuid troom = do
 sendEvent :: Event -> UUID -> TVar Room -> STM ()
 sendEvent e uuid = flip writeTQueue e . playerEvents <=< initEventQueue uuid
 
-crackBooster :: MonadRandom m => CardDatabase -> Room -> m Room
-crackBooster db room = if null (roomBoosters room) then return room else do
+crackBooster :: MonadRandom m => CardDatabase -> BoosterCycles -> Room -> m Room
+crackBooster db bcycles room = if null (roomBoosters room) then return room else do
   pl' <- sequence $ M.map (givePlayer (head . roomBoosters $ room)) (roomPlayers room)
   return $ room { roomPlayers = pl', roomBoosters = tail (roomBoosters room), roomDirection = changeDirection (roomDirection room) }
   where
     givePlayer :: MonadRandom m => BoosterType -> Player -> m Player
-    givePlayer s p = do
-      b <- generateBooster s db
-      return $ p { playerDraft = playerDraft p ++ (catMaybes b), playerPicked = False }
+    givePlayer btype p = do
+      b <- generateBooster db bcycles btype
+      return $ p { playerDraft = playerDraft p ++ b, playerPicked = False }
 
 pop :: Int -> [a] -> (Maybe a, [a])
 pop _ [] = (Nothing, [])
