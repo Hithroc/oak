@@ -161,6 +161,15 @@ transferCard uuid index room = modifyPlayer uuid (\p -> if playerPicked p then p
     f p = p { playerPicked = True, playerDraft = snd . popped $ p, playerPool = maybe id (:) (fst . popped $ p) (playerPool p) }
     popped p = pop (index `mod` length (playerDraft p)) $ playerDraft p
 
+transferAllCards :: Room -> Room
+transferAllCards r = r { roomPlayers = fmap (\p -> p { playerPool = playerDraft p, playerDraft = playerPool p }) $ roomPlayers r }
+
+crackAllBoosters :: MonadRandom m => CardDatabase -> BoosterCycles -> Room -> m Room
+crackAllBoosters db bcycles room
+  = if null $ roomBoosters room
+    then return room
+    else crackBooster db bcycles room >>= crackAllBoosters db bcycles
+
 shift :: Direction -> [a] -> [a]
 shift _ [] = []
 shift DLeft (x:xs) = xs ++ [x]

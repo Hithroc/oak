@@ -121,15 +121,23 @@ roomComponent = do
   liftIO $ addWork WorkNow () worker
 
   get createRoomR $ \boosters -> do
+    (sealed :: Maybe T.Text) <- param "sealed"
+    db <- cardDb <$> getState
+    bcycles <- cardCycles <$> getState
     liftIO . putStrLn $ "createroom: " ++ show boosters
     uuid <- getUserUUID <$> readSession
     rid <- nextRoomNumber
     trooms <- stateRooms <$> getState
     curtime <- liftIO $ getCurrentTime
+    troom <- liftIO $ newTVarIO . (\x -> x { roomHost = uuid }) $ createRoom boosters curtime
     liftIO . atomically $ do
-      troom <- newTVar . (\x -> x { roomHost = uuid }) $ createRoom boosters curtime
       modifyTVar trooms $ (IM.insert rid troom)
       addPlayerSTM uuid $ troom
+    liftIO $ flip (maybe (return ())) sealed $ \_ -> do
+      room <- atomically $ readTVar troom
+      room' <- evalRandIO $ crackAllBoosters db bcycles room
+      atomically . writeTVar troom $ transferAllCards room'
+
     redirect (renderRoute roomR (toHashid rid))
 
   get roomR $ \(ruid :: T.Text) -> directoryHook $ withRoom ruid $ \_ -> do
