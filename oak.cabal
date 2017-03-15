@@ -77,3 +77,4 @@ executable oak
                       ,time >= 1.6.0.1
                       ,deepseq >= 1.4.2.0
                       ,streams >= 3.3
+                      ,random-shuffle >= 0.0.4

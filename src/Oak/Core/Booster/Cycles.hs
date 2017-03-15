@@ -8,25 +8,20 @@ import qualified Data.List.NonEmpty as NL
 import qualified Data.Map as M
 import Data.Text (Text)
 import qualified Data.Vector as V
-import Data.Maybe
 import Control.DeepSeq
 import Data.Aeson
 import Control.Monad
 import Control.Monad.Random
+import Control.Monad.State
+import Control.Monad.Reader
 
 data CardCycle = CardCycle Int (S.Stream Card)
 instance Show CardCycle where
-  show (CardCycle n cycle) = "CardCycle " ++ show n ++ " " ++ show (S.take n cycle)
+  show (CardCycle n cyc) = "CardCycle " ++ show n ++ " " ++ show (S.take n cyc)
 data JSONCardCycle = JSONCardCycle (NL.NonEmpty Text)
   deriving Show
 type RarityCycles = M.Map Rarity CardCycle
 type BoosterCycles = M.Map BoosterType RarityCycles
-
-lookupCycle :: BoosterType -> Rarity -> BoosterCycles -> Maybe CardCycle
-lookupCycle btype rar = M.lookup btype >=> M.lookup rar
-
-getCycledBooster :: [(Int, CardCycle)] -> [([Card], CardCycle)]
-getCycledBooster xs = foldr (\(n, (CardCycle len cycle)) acc -> fmap (CardCycle len) (S.splitAt n cycle) : acc) [] xs
 
 instance FromJSON JSONCardCycle where
   parseJSON (Array v) = do
@@ -35,13 +30,18 @@ instance FromJSON JSONCardCycle where
   parseJSON _ = mzero
  
 convertJsonCycle :: Set.Set Card -> JSONCardCycle -> CardCycle
-convertJsonCycle db (JSONCardCycle cycle) = CardCycle (length cycle) . S.cycle . force . fmap lookupDb $ cycle
+convertJsonCycle db (JSONCardCycle cyc) = CardCycle (length cyc) . S.cycle . force . fmap lookupDb $ cyc
   where
     lookupDb n = head . filter ((==n) . cardNumber) . Set.toList $ db
 
+splitCycle :: Int -> CardCycle -> ([Card], CardCycle)
+splitCycle n (CardCycle len cyc) = fmap (CardCycle len) . S.splitAt n $ cyc
 
 filterExpansion :: Expansion -> Set.Set Card -> Set.Set Card
 filterExpansion expansion = Set.filter ((==expansion) . cardExpansion)
+
+isRarity :: Rarity -> Card -> Bool
+isRarity r = (==r) . cardRarity
 
 boosterCards :: BoosterType -> Set.Set Card -> Set.Set Card
 boosterCards (CustomBooster cards _)   = const cards
@@ -57,11 +57,25 @@ convertBoosterCycles :: CardDatabase -> M.Map BoosterType (M.Map Rarity JSONCard
 convertBoosterCycles (CardDatabase db) = M.mapWithKey (\e v -> fmap (convertJsonCycle (boosterCards e db)) v)
 
 randomizeCycle :: MonadRandom m => CardCycle -> m CardCycle
-randomizeCycle c@(CardCycle len cycle) = if len <= 0 then return c else do
+randomizeCycle c@(CardCycle len cyc) = if len <= 0 then return c else do
   n <- getRandomR (0, len)
-  return $ CardCycle n (S.drop n cycle)
+  return $ CardCycle n (S.drop n cyc)
 
 makeUniformCycle :: MonadRandom m => Set.Set Card -> m CardCycle
 makeUniformCycle cards = do
   stream <- getRandomRs (0, Set.size cards - 1)
   return (CardCycle 0 (fmap (flip Set.elemAt cards) (S.cycle . NL.fromList $ stream)))
+
+getCycledCards :: (MonadState RarityCycles m, MonadRandom m, MonadReader (Set.Set Card) m) => Int -> Rarity -> m [Card]
+getCycledCards n rar = do
+  cycles <- get
+  cards <- ask
+  (ret, cyc) <- splitCycle n <$> maybe (makeUniformCycle . Set.filter (isRarity rar) $ cards) return (M.lookup rar cycles)
+  modify (M.insert rar cyc)
+  return ret
+
+getCycledCard :: (MonadState RarityCycles m, MonadRandom m, MonadReader (Set.Set Card) m) => Rarity -> m Card
+getCycledCard = fmap head . getCycledCards 1
+
+getCycledBooster :: (MonadState RarityCycles m, MonadRandom m, MonadReader (Set.Set Card) m) => [(Int, Rarity)] -> m [Card]
+getCycledBooster = fmap concat . traverse (uncurry getCycledCards)

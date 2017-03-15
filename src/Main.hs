@@ -25,4 +25,5 @@ main = do
       case fmap fixDatabase db >>= \y -> fmap (\x -> (y,x)) cycles of
         Left e -> hPutStrLn stderr e
         Right (db', cycles') -> do
+          (\(CardDatabase x) -> print $ length x) db'
           runApp cfg db' (convertBoosterCycles db' cycles')

@@ -14,6 +14,7 @@ import Text.Read (readMaybe)
 
 data Rarity -- Darling
   = Fixed
+  | ParallelFoil
   | Promotional
   | Common
   | Uncommon
@@ -37,6 +38,7 @@ instance Show Rarity where
   show UltraRare   = "UR"
   show RoyalRare   = "RR"
   show Fixed       = "F"
+  show ParallelFoil = "ƒ"
   show Promotional = "P"
 
 data Expansion

@@ -4,7 +4,6 @@ import Data.UUID (UUID, nil)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
-import Data.Maybe
 import Control.Monad.Random
 import Control.Concurrent.STM
 import Data.SafeCopy
@@ -145,8 +144,8 @@ crackBooster db bcycles room = if null (roomBoosters room) then return room else
   where
     givePlayer :: MonadRandom m => BoosterType -> Player -> m Player
     givePlayer btype p = do
-      b <- generateBooster db bcycles btype
-      return $ p { playerDraft = playerDraft p ++ b, playerPicked = False }
+      b <- generateBox db bcycles btype
+      return $ p { playerDraft = playerDraft p ++ concat b, playerPicked = False }
 
 pop :: Int -> [a] -> (Maybe a, [a])
 pop _ [] = (Nothing, [])

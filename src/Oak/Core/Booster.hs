@@ -1,70 +1,50 @@
-module Oak.Core.Booster (module X, generateBooster) where
+module Oak.Core.Booster (module X, generateBox) where
 
 import Oak.Core.Booster.Types as X
 import Oak.Core.Booster.Database as X
 import Oak.Core.Booster.Cycles as X
 
 import Control.Monad.Random
+import Control.Monad.State
+import Control.Monad.Reader
 import Data.Ratio
-import Control.Spoon
-import qualified Data.Set as S
+import qualified Data.Map as M
 import Data.List
+import System.Random.Shuffle
 
 cloudHatePredicate :: forall a. a -> Bool
 cloudHatePredicate = const True
-
-boosterWeights :: BoosterType -> [(Rarity, Rational)]
-boosterWeights PremiereBooster = [(UltraRare, 1 % 13)]
-boosterWeights CanterlotNightsBooster = [(UltraRare, 1 % 11)]
-boosterWeights TheCrystalGamesBooster = [(UltraRare, 1 % 11)]
-boosterWeights AbsoluteDiscordBooster = [(UltraRare, 1 % 11)]
-boosterWeights EquestrianOdysseysBooster
-  = [ (UltraRare, 4 % 36)
-    , (SuperRare, 8 % 36)
-    , (RoyalRare, 1 % 216)
-    ]
-boosterWeights HighMagicBooster
-  = [ (UltraRare, 4 % 36)
-  , (SuperRare, 8 % 36)
-  , (RoyalRare, 1 % 216)
-  ]
-
-boosterWeights MarksInTimeBooster
-  = [ (UltraRare, 4 % 36)
-    , (SuperRare, 8 % 36)
-    , (RoyalRare, 1 % 216)
-    ]
-boosterWeights (CustomBooster _ x) = x
-
-isRarity :: Rarity -> Card -> Bool
-isRarity r = (==r) . cardRarity
-
-pick :: (MonadRandom m) => S.Set a -> m (Maybe a)
-pick xs = do
-  index <- getRandomR (0, S.size xs - 1)
-  return . teaspoon . S.elemAt index $ xs
-
-pickPred :: (MonadRandom m, Ord a) => [a -> Bool] -> S.Set a -> m [Maybe a]
-pickPred [] _ = return []
-pickPred (p:ps) xs
-  | S.null xs = return $ map (const Nothing) (p:ps)
-  | otherwise = do
-  c <- pick (S.filter p xs)
-  fmap (c:) (pickPred ps (maybe id (S.delete) c xs))
 
 pickRarity :: MonadRandom m => [(Rarity, Rational)] -> m Rarity
 pickRarity xs = fromList $ (Common, comr) : xs -- MonadRandom's fromList
   where comr = max 0 . foldl (-) 1 . map snd $ xs
 
-generateBooster :: MonadRandom m => CardDatabase -> BoosterCycles -> BoosterType -> m [Card]
-generateBooster (CardDatabase cards) bcycles btype = do
-  r <- pickRarity (boosterWeights btype)
-  let rarities = replicate 7 Common ++ [r, Rare] ++ replicate 3 Uncommon
-      groupedRarities :: [(Int, Rarity)]
-      groupedRarities = fmap (\x -> (length x, head x)) . group $ rarities
-      getCycle :: MonadRandom m => Rarity -> m CardCycle
-      getCycle rar = case lookupCycle btype rar bcycles of
-                   Nothing -> makeUniformCycle (S.filter (isRarity rar) . boosterCards btype $ cards)
-                   Just cycle -> return cycle
-  cycles  <- traverse (traverse (randomizeCycle <=< getCycle)) groupedRarities
-  return . concat . map fst . getCycledBooster $ cycles
+generateBox :: MonadRandom m => CardDatabase -> BoosterCycles -> BoosterType -> m [[Card]]
+generateBox (CardDatabase cards) bcycles btype = do
+  boxStruct <- constructBox btype
+  let
+    cycles = maybe M.empty id $ M.lookup btype bcycles
+    groupRarities rars = fmap (\x -> (length x, head x)) . group $ rars
+  cycles' <- traverse randomizeCycle cycles
+  let go = shuffleM <=< traverse (getCycledBooster . groupRarities) $ boxStruct
+  evalStateT (runReaderT go (boosterCards btype cards)) cycles'
+
+regularBooster :: Rarity -> [Rarity]
+regularBooster Common = replicate 8 Common ++ [Rare] ++ replicate 3 Uncommon
+regularBooster r = replicate 7 Common ++ [Rare, r] ++ replicate 3 Uncommon
+
+constructBox :: MonadRandom m => BoosterType -> m [[Rarity]]
+constructBox bt
+  | bt `elem` [PremiereBooster, CanterlotNightsBooster, TheCrystalGamesBooster, AbsoluteDiscordBooster]
+    = do
+    r <- pickRarity [(UltraRare, 77 % 100)] 
+    let quadrant rar = Common : Common : rar : replicate 6 Common
+    return . map regularBooster . concat $ quadrant r : quadrant Common : replicate 2 (quadrant UltraRare)
+
+  | bt `elem` [EquestrianOdysseysBooster, HighMagicBooster, MarksInTimeBooster]
+    = do
+    r <- pickRarity [(RoyalRare, 1 % 6)]
+    let quadrant = SuperRare : Common : UltraRare : Common : SuperRare : replicate 4 Common
+        extraQuadrant = init quadrant ++ [r]
+    return . map regularBooster . concat $ replicate 3 quadrant ++ [extraQuadrant]
+  | otherwise = return []
