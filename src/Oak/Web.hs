@@ -7,9 +7,11 @@ import Data.Monoid
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Concurrent.STM
+import Control.Monad.Random
 import qualified Data.UUID as UUID
 import Data.UUID.V4
 import qualified Data.IntMap as IM
+import qualified Data.Map as M
 import Network.Wai.Handler.Warp
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -86,7 +88,11 @@ runApp cfg db bcycles = do
         Left e -> putStrLn $ "Failed to deserialize rooms: " ++ e
         Right rooms -> atomically $ readTVar rooms >>= writeTVar trooms
   sessStore <- oakSessionStore
-  spockCfg <- defaultSpockCfg (UserSession UUID.nil) PCNoDatabase (GlobalState trooms db bcycles)
+  let btypes = [PremiereBooster, CanterlotNightsBooster, TheCrystalGamesBooster, AbsoluteDiscordBooster, EquestrianOdysseysBooster, HighMagicBooster, MarksInTimeBooster]
+  streams <- traverse (evalRandIO . boxStream db bcycles) btypes
+  let bmap = M.fromList $ zip [PremiereBooster, CanterlotNightsBooster] streams
+  tboxes <- newTVarIO bmap
+  spockCfg <- defaultSpockCfg (UserSession UUID.nil) PCNoDatabase (GlobalState trooms db tboxes)
   let newSessionCfg s = s { sc_store = SessionStoreInstance sessStore }
   spockapp <- spockAsApp (spock (spockCfg { spc_errorHandler = customError, spc_sessionCfg = newSessionCfg (spc_sessionCfg spockCfg) }) app)
   runSettings (settings) (spockapp)

@@ -123,7 +123,7 @@ roomComponent = do
   get createRoomR $ \boosters -> do
     (sealed :: Maybe T.Text) <- param "sealed"
     db <- cardDb <$> getState
-    bcycles <- cardCycles <$> getState
+    tboxes <- stateBoxes <$> getState
     liftIO . putStrLn $ "createroom: " ++ show boosters
     uuid <- getUserUUID <$> readSession
     rid <- nextRoomNumber
@@ -133,10 +133,7 @@ roomComponent = do
     liftIO . atomically $ do
       modifyTVar trooms $ (IM.insert rid troom)
       addPlayerSTM uuid $ troom
-    liftIO $ flip (maybe (return ())) sealed $ \_ -> do
-      room <- atomically $ readTVar troom
-      room' <- evalRandIO $ crackAllBoosters db bcycles room
-      atomically . writeTVar troom $ transferAllCards room'
+    liftIO $ flip (maybe (return ())) sealed $ \_ -> atomically $ crackAllBoosters tboxes troom
 
     redirect (renderRoute roomR (toHashid rid))
 
@@ -153,17 +150,15 @@ roomComponent = do
   get cardPickR $ \ruid pick -> withRoom ruid $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
     db <- cardDb <$> getState
-    bcycles <- cardCycles <$> getState
+    tboxes <- stateBoxes <$> getState
     room <- liftIO . atomically $ do
       modifyTVar troom (transferCard uuid pick)
       readTVar troom
-    when (all playerPicked . roomPlayers $ room) . liftIO $ do
+    when (all playerPicked . roomPlayers $ room) . liftIO . atomically $ do
       if (all (null . playerDraft) . roomPlayers $ room)
-      then do
-        room' <- evalRandTIO $ crackBooster db bcycles room
-        atomically $ writeTVar troom room'
-      else atomically $ modifyTVar troom (rotateCards)
-      atomically $ broadcastEvent CardListUpdate troom
+      then crackBooster tboxes troom
+      else modifyTVar troom (rotateCards)
+      broadcastEvent CardListUpdate troom
     liftIO . atomically $ do
       sendEvent CardListUpdate uuid troom 
       broadcastEvent PlayersUpdate troom
@@ -171,14 +166,13 @@ roomComponent = do
   get startR $ \ruid -> withRoom ruid $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
     db <- cardDb <$> getState
-    bcycles <- cardCycles <$> getState
+    tboxes <- stateBoxes <$> getState
     room <- liftIO . readTVarIO $ troom
     if roomHost room /= uuid
     then setStatus forbidden403 >> text "You're not the host!"
-    else unless (roomClosed room) $ do
-      room' <- liftIO . evalRandTIO $ crackBooster db bcycles room
-      liftIO . atomically $ do
-        writeTVar troom (room' { roomClosed = True })
+    else unless (roomClosed room) $ liftIO . atomically $ do
+        crackBooster tboxes troom
+        modifyTVar troom (\r -> r { roomClosed = True })
         broadcastEvent CardListUpdate troom
 
   get eventsR $ \ruid -> withRoom ruid $ \(_, troom) -> do

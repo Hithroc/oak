@@ -4,12 +4,15 @@ import Data.UUID (UUID, nil)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
+import Data.Maybe
 import Control.Monad.Random
+import Control.Monad.State
 import Control.Concurrent.STM
 import Data.SafeCopy
 import Data.UUID.SafeCopy ()
 import Data.Serialize (Get)
 import Data.Time.Clock
+import qualified Data.Stream.Infinite as S
 
 import Oak.Core.Booster
 
@@ -137,15 +140,24 @@ nextEvent uuid troom = do
 sendEvent :: Event -> UUID -> TVar Room -> STM ()
 sendEvent e uuid = flip writeTQueue e . playerEvents <=< initEventQueue uuid
 
-crackBooster :: MonadRandom m => CardDatabase -> BoosterCycles -> Room -> m Room
-crackBooster db bcycles room = if null (roomBoosters room) then return room else do
-  pl' <- sequence $ M.map (givePlayer (head . roomBoosters $ room)) (roomPlayers room)
-  return $ room { roomPlayers = pl', roomBoosters = tail (roomBoosters room), roomDirection = changeDirection (roomDirection room) }
+crackBooster :: TVar (M.Map BoosterType (S.Stream [Card])) -> TVar Room -> STM ()
+crackBooster tboxes troom = do
+  room <- readTVar troom
+  boxes <- readTVar tboxes
+  case roomBoosters room of
+    [] -> return ()
+    (btype:bs) -> case M.lookup btype boxes of
+      Nothing -> return ()
+      Just boxStream -> do
+        (pl', boxStream') <- runStateT (traverse givePlayer $ roomPlayers room) boxStream
+        modifyTVar tboxes (M.insert btype boxStream)
+        modifyTVar troom (\r -> r { roomPlayers = pl', roomBoosters = bs, roomDirection = changeDirection (roomDirection room) })
   where
-    givePlayer :: MonadRandom m => BoosterType -> Player -> m Player
-    givePlayer btype p = do
-      b <- generateBox db bcycles btype
-      return $ p { playerDraft = playerDraft p ++ concat b, playerPicked = False }
+    givePlayer :: MonadState (S.Stream [Card]) m => Player -> m Player
+    givePlayer p = do
+      booster <- head . S.take 1 <$> get
+      modify S.tail
+      return $ p { playerDraft = playerDraft p ++ booster, playerPicked = False }
 
 pop :: Int -> [a] -> (Maybe a, [a])
 pop _ [] = (Nothing, [])
@@ -163,11 +175,12 @@ transferCard uuid index room = modifyPlayer uuid (\p -> if playerPicked p then p
 transferAllCards :: Room -> Room
 transferAllCards r = r { roomPlayers = fmap (\p -> p { playerPool = playerDraft p, playerDraft = playerPool p }) $ roomPlayers r }
 
-crackAllBoosters :: MonadRandom m => CardDatabase -> BoosterCycles -> Room -> m Room
-crackAllBoosters db bcycles room
-  = if null $ roomBoosters room
-    then return room
-    else crackBooster db bcycles room >>= crackAllBoosters db bcycles
+crackAllBoosters :: TVar (M.Map BoosterType (S.Stream [Card])) -> TVar Room -> STM ()
+crackAllBoosters tboxes troom = do
+  room <- readTVar troom
+  unless (null $ roomBoosters room) $ do
+    crackBooster tboxes troom
+    crackAllBoosters tboxes troom
 
 shift :: Direction -> [a] -> [a]
 shift _ [] = []

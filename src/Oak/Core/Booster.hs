@@ -1,4 +1,4 @@
-module Oak.Core.Booster (module X, generateBox) where
+module Oak.Core.Booster (module X, generateBox, boxStream) where
 
 import Oak.Core.Booster.Types as X
 import Oak.Core.Booster.Database as X
@@ -11,6 +11,7 @@ import Data.Ratio
 import qualified Data.Map as M
 import Data.List
 import System.Random.Shuffle
+import qualified Data.Stream.Infinite as S
 
 cloudHatePredicate :: forall a. a -> Bool
 cloudHatePredicate = const True
@@ -48,3 +49,8 @@ constructBox bt
         extraQuadrant = init quadrant ++ [r]
     return . map regularBooster . concat $ replicate 3 quadrant ++ [extraQuadrant]
   | otherwise = return []
+
+boxStream :: MonadRandom m => CardDatabase -> BoosterCycles -> BoosterType -> m (S.Stream [Card])
+boxStream db bcycles btype = do
+  box <- generateBox db bcycles btype
+  (S.prepend box) <$> boxStream db bcycles btype
