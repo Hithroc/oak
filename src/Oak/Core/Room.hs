@@ -150,7 +150,7 @@ crackBooster tboxes troom = do
       Nothing -> return ()
       Just boxStream -> do
         (pl', boxStream') <- runStateT (traverse givePlayer $ roomPlayers room) boxStream
-        modifyTVar tboxes (M.insert btype boxStream)
+        modifyTVar tboxes (M.insert btype boxStream')
         modifyTVar troom (\r -> r { roomPlayers = pl', roomBoosters = bs, roomDirection = changeDirection (roomDirection room) })
   where
     givePlayer :: MonadState (S.Stream [Card]) m => Player -> m Player
