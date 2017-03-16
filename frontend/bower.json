@@ -11,7 +11,8 @@
     "purescript-console": "^2.0.0",
     "purescript-halogen": "1.0.0",
     "purescript-affjax": "*",
-    "purescript-websocket-simple": "*"
+    "purescript-websocket-simple": "*",
+    "purescript-infinite-list": "0.2.2"
   },
   "devDependencies": {
     "purescript-psci-support": "^2.0.0"
