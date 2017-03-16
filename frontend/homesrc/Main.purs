@@ -106,7 +106,12 @@ mane =
         ]
       ]
       <> mapWithIndex (\i x -> HH.slot i boosterSelector x absurd) (IL.take st.boosters boosterStream)
-      <> [ HH.div [HP.class_ (ClassName "version")] [ HH.text $ maybe "Version unknown" id st.oakVersion ] ]
+      <>
+      [ HH.div [HP.class_ (ClassName "version")]
+        [ HH.div_ [HH.text $ maybe "Version unknown" id st.oakVersion <> " "]
+        , HH.div_ [HH.a [HP.href "https://github.com/hithroc/oak/releases", HP.target "_blank"] [HH.text "Changelog"]]
+        ]
+      ]
 
     eval :: ManeQuery ~> H.ParentDSL ManeState ManeQuery BoosterSelectorQuery Slot Void (ManeAff m)
     eval (Initialize next) = do
