@@ -92,11 +92,13 @@ mane =
           , HH.br_
           , HH.label_ [HH.text "Sealed"]
           ]
+        {-
         , HH.div_
-          [ HH.input [ HP.name "roomtype", HP.type_ HP.InputRadio, HE.onClick (HE.input_ $ SetRoomType BoosterBox) ]
+          [ HH.input [ HP.name "roomtype", HP.type_ HP.InputRadio, HP.disabled true, HE.onClick (HE.input_ $ SetRoomType BoosterBox) ]
           , HH.br_
           , HH.label_ [HH.text "Booster box"]
           ]
+        -}
         ]
       , HH.div [HP.class_ (ClassName "booster-buttons")]
         [ HH.button [ HP.disabled $ st.boosters >= snd (packLimits st.roomType), HE.onClick (HE.input_ AddBooster) ] [ HH.text "Add pack" ]
