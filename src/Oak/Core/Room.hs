@@ -178,7 +178,9 @@ transferAllCards r = r { roomPlayers = fmap (\p -> p { playerPool = playerDraft 
 crackAllBoosters :: TVar (M.Map BoosterType (S.Stream [Card])) -> TVar Room -> STM ()
 crackAllBoosters tboxes troom = do
   room <- readTVar troom
-  unless (null $ roomBoosters room) $ do
+  if null $ roomBoosters room
+  then modifyTVar troom transferAllCards
+  else do
     crackBooster tboxes troom
     crackAllBoosters tboxes troom
 
