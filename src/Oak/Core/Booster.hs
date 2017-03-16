@@ -36,18 +36,25 @@ regularBooster r = replicate 7 Common ++ [Rare, r] ++ replicate 3 Uncommon
 
 constructBox :: MonadRandom m => BoosterType -> m [[Rarity]]
 constructBox bt
-  | bt `elem` [PremiereBooster, CanterlotNightsBooster, TheCrystalGamesBooster, AbsoluteDiscordBooster]
+  | bt == PremiereBooster
     = do
-    r <- pickRarity [(UltraRare, 77 % 100)] 
+    r <- pickRarity [(UltraRare, 77 % 100)]
     let quadrant rar = Common : Common : rar : replicate 6 Common
     return . map regularBooster . concat $ quadrant r : quadrant Common : replicate 2 (quadrant UltraRare)
+
+  | bt `elem` [CanterlotNightsBooster, TheCrystalGamesBooster, AbsoluteDiscordBooster]
+    = do
+    r <- pickRarity [(UltraRare, 27 % 100)]
+    let quadrant rar = Common : Common : rar : replicate 6 Common
+    return . map regularBooster . concat $ quadrant r : replicate 3 (quadrant UltraRare)
 
   | bt `elem` [EquestrianOdysseysBooster, HighMagicBooster, MarksInTimeBooster]
     = do
     r <- pickRarity [(RoyalRare, 1 % 6)]
     let quadrant = SuperRare : Common : UltraRare : Common : SuperRare : replicate 4 Common
-        extraQuadrant = init quadrant ++ [r]
-    return . map regularBooster . concat $ replicate 3 quadrant ++ [extraQuadrant]
+        specialQuadrant = SuperRare : Common : UltraRare : Common : SuperRare : Common : r : replicate 2 Common
+    return . map regularBooster . concat $ replicate 3 quadrant ++ [specialQuadrant]
+
   | otherwise = return []
 
 boxStream :: MonadRandom m => CardDatabase -> BoosterCycles -> BoosterType -> m (S.Stream [Card])
