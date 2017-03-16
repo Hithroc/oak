@@ -90,7 +90,7 @@ runApp cfg db bcycles = do
   sessStore <- oakSessionStore
   let btypes = [PremiereBooster, CanterlotNightsBooster, TheCrystalGamesBooster, AbsoluteDiscordBooster, EquestrianOdysseysBooster, HighMagicBooster, MarksInTimeBooster]
   streams <- traverse (evalRandIO . boxStream db bcycles) btypes
-  let bmap = M.fromList $ zip [PremiereBooster, CanterlotNightsBooster] streams
+  let bmap = M.fromList $ zip btypes streams
   tboxes <- newTVarIO bmap
   spockCfg <- defaultSpockCfg (UserSession UUID.nil) PCNoDatabase (GlobalState trooms db tboxes)
   let newSessionCfg s = s { sc_store = SessionStoreInstance sessStore }
