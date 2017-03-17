@@ -13,6 +13,7 @@ import Data.UUID.SafeCopy ()
 import Data.Serialize (Get)
 import Data.Time.Clock
 import qualified Data.Stream.Infinite as S
+import Control.Lens
 
 import Oak.Core.Booster
 
@@ -33,12 +34,14 @@ changeDirection DRight = DLeft
 
 data PlayerEventQueue
   = PlayerEventQueue
-  { playerEvents :: TQueue Event
+  { _playerEvents :: TQueue Event
   }
+makeLenses ''PlayerEventQueue
 
 newtype MPlayerEventQueue = MPlayerEventQueue (Maybe PlayerEventQueue)
-fromMPEQ :: MPlayerEventQueue -> Maybe PlayerEventQueue
-fromMPEQ (MPlayerEventQueue a) = a
+
+mPlayerEventQueueIso :: Iso MPlayerEventQueue (Maybe PlayerEventQueue)
+mPlayerEventQueueIso = iso (\(MPlayerEventQueue q) -> q) (\q -> MPlayerEventQueue q)
 
 instance Show MPlayerEventQueue where
   show _ = "EventQueue"
@@ -51,67 +54,75 @@ instance SafeCopy (MPlayerEventQueue) where
 
 data Player
   = Player
-  { playerName :: Text
-  , playerDraft :: [Card]
-  , playerPool :: [Card]
-  , playerPicked :: Bool
-  , playerEventQueue :: MPlayerEventQueue
+  { _playerName :: Text
+  , _playerDraft :: [Card]
+  , _playerPool :: [Card]
+  , _playerPicked :: Bool
+  , _mPlayerEventQueue :: MPlayerEventQueue
   }
   deriving Show
 deriveSafeCopy 1 'base ''Player
+makeLenses ''Player
+
+playerEventQueue :: Lens' Player (Maybe PlayerEventQueue)
+playerEventQueue = mPlayerEventQueue . mPlayerEventQueueIso
 
 defaultPlayer :: Player
 defaultPlayer
   = Player
-  { playerName = "Trixie Lulamoon"
-  , playerDraft = []
-  , playerPool = []
-  , playerPicked = False
-  , playerEventQueue = (MPlayerEventQueue Nothing)
+  { _playerName = "Trixie Lulamoon"
+  , _playerDraft = []
+  , _playerPool = []
+  , _playerPicked = False
+  , _playerEventQueue = (MPlayerEventQueue Nothing)
   }
 
 data Room
   = Room
-  { roomPlayers :: Map UUID Player
-  , roomBoosters :: [BoosterType]
-  , roomClosed :: Bool 
-  , roomHost :: UUID
-  , roomDirection :: Direction
-  , roomLastActive :: UTCTime
+  { _roomPlayers :: Map UUID Player
+  , _roomBoosters :: [BoosterType]
+  , _roomClosed :: Bool 
+  , _roomHost :: UUID
+  , _roomDirection :: Direction
+  , _roomLastActive :: UTCTime
   }
   deriving Show
 deriveSafeCopy 1 'base ''Room
+makeLenses ''Room
+
+roomPlayer :: UUID -> Prism' Room Player
+roomPlayer uuid = roomPlayers . at uuid . _Just
 
 createRoom :: [BoosterType] -> UTCTime -> Room
 createRoom btype time
   = Room 
-  { roomPlayers = M.empty
-  , roomBoosters = btype
-  , roomClosed = False
-  , roomHost = nil
-  , roomDirection = DLeft
-  , roomLastActive = time
+  { _roomPlayers = M.empty
+  , _roomBoosters = btype
+  , _roomClosed = False
+  , _roomHost = nil
+  , _roomDirection = DLeft
+  , _roomLastActive = time
   }
 
 addPlayer :: UUID -> Room -> Room
-addPlayer uuid room = room { roomPlayers = M.insert uuid defaultPlayer (roomPlayers room) }
+addPlayer uuid room = room & roomPlayers . at uuid ?~ defaultPlayer
 
 initEventQueue :: UUID -> TVar Room -> STM PlayerEventQueue
 initEventQueue uuid troom = do
   room <- readTVar troom
-  let pl = uuid `M.lookup` roomPlayers room
-  case pl >>= fromMPEQ . playerEventQueue of
+  let queue = roomPlayer uuid . playerEventQueue
+  case room ^? queue . _Just of
     Just eq -> return eq
     Nothing -> do
-      queue <- newTQueue
-      let eq = PlayerEventQueue queue
-      modifyTVar troom (modifyPlayer uuid (\p -> p { playerEventQueue = MPlayerEventQueue $ Just eq }))
+      eq <- PlayerEventQueue <$> newTQueue
+      modifyTVar troom (queue ?~ eq)
+      --modifyTVar troom (modifyPlayer uuid (\p -> p { playerEventQueue = MPlayerEventQueue $ Just eq }))
       return eq
 
 terminateEventQueue :: UUID -> TVar Room -> STM ()
 terminateEventQueue uuid troom = do
   sendEvent TerminateListener uuid troom
-  modifyTVar troom (modifyPlayer uuid (\p -> p { playerEventQueue = (MPlayerEventQueue Nothing) }))
+  modifyTVar troom (roomPlayer uuid . playerEventQueue .~ Nothing)
 
 addPlayerSTM :: UUID -> TVar Room -> STM ()
 addPlayerSTM uuid = flip modifyTVar (addPlayer uuid)
@@ -119,26 +130,27 @@ addPlayerSTM uuid = flip modifyTVar (addPlayer uuid)
 addPlayerIO :: UUID -> TVar Room -> IO ()
 addPlayerIO uuid = atomically . addPlayerSTM uuid
 
-modifyPlayer :: UUID -> (Player -> Player) -> Room -> Room
-modifyPlayer uuid f room = room { roomPlayers = M.adjust f uuid (roomPlayers room) }
+eventPrism :: _
+eventPrism target = roomPlayers . target . playerEventQueue . _Just . playerEvents %%~ flip writeTQueue e
 
 broadcastEvent :: Event -> TVar Room -> STM ()
-broadcastEvent e troom = readTVar troom >>= sequence_
+broadcastEvent e troom = void $ readTVar troom >>= eventPrism each
+{-broadcastEvent e troom = readTVar troom >>= sequence_
   . map (flip writeTQueue e . playerEvents <=< flip initEventQueue troom)
   . M.keys
-  . roomPlayers
+  . roomPlayers-}
+
+sendEvent :: Event -> UUID -> TVar Room -> STM ()
+sendEvent e uuid = void $ readTVar troom >>= eventPrism (at uuid . _Just)
 
 nextEvent :: UUID -> TVar Room -> IO (Maybe Event)
 nextEvent uuid troom = do
   eq <- atomically $ initEventQueue uuid troom
-  let tq = playerEvents eq
+  let tq = eq ^. playerEvents
   e <- atomically $ readTQueue $ tq
   case e of
     TerminateListener -> return Nothing
     _ -> return $ Just e
-
-sendEvent :: Event -> UUID -> TVar Room -> STM ()
-sendEvent e uuid = flip writeTQueue e . playerEvents <=< initEventQueue uuid
 
 crackBooster :: TVar (M.Map BoosterType (S.Stream [Card])) -> TVar Room -> STM ()
 crackBooster tboxes troom = do
