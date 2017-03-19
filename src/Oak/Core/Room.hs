@@ -110,13 +110,14 @@ addPlayer uuid room = room & roomPlayers . at uuid ?~ defaultPlayer
 initEventQueue :: UUID -> TVar Room -> STM PlayerEventQueue
 initEventQueue uuid troom = do
   room <- readTVar troom
-  let queue = roomPlayer uuid . playerEventQueue
+  let
+    queue :: Traversal' Room (Maybe PlayerEventQueue)
+    queue = roomPlayer uuid . playerEventQueue
   case room ^? queue . _Just of
     Just eq -> return eq
     Nothing -> do
       eq <- PlayerEventQueue <$> newTQueue
-      --modifyTVar troom (queue ?~ eq)
-      --modifyTVar troom (modifyPlayer uuid (\p -> p { playerEventQueue = MPlayerEventQueue $ Just eq }))
+      modifyTVar troom (queue ?~ eq)
       return eq
 
 terminateEventQueue :: UUID -> TVar Room -> STM ()
@@ -134,10 +135,6 @@ eventPrism e target = roomPlayers . target . playerEventQueue . _Just . playerEv
 
 broadcastEvent :: Event -> TVar Room -> STM ()
 broadcastEvent e troom = void $ readTVar troom >>= eventPrism e each
-{-broadcastEvent e troom = readTVar troom >>= sequence_
-  . map (flip writeTQueue e . playerEvents <=< flip initEventQueue troom)
-  . M.keys
-  . roomPlayers-}
 
 sendEvent :: Event -> UUID -> TVar Room -> STM ()
 sendEvent e uuid troom = void $ readTVar troom >>= eventPrism e (at uuid . _Just)

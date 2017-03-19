@@ -23,6 +23,7 @@ import Network.Wai
 import Network.WebSockets
 import Data.Time.Clock
 import Control.Concurrent
+import Control.Lens
 
 import Oak.Web.Utils
 import Oak.Web.Types
@@ -73,13 +74,13 @@ unknownPayload :: JSONPayload ()
 unknownPayload = JSONPayload "unknown" ()
 
 playerObj :: Player -> PlayerAPI
-playerObj = liftA2 PlayerAPI playerName playerPicked
+playerObj = liftA2 PlayerAPI _playerName _playerPicked
 
 cardObj :: Card -> CardAPI
 cardObj = liftA3 CardAPI (T.pack . setToLetters . cardExpansion) cardNumber (T.pack . show . cardRarity)
 
 cardListObj :: Player -> CardListAPI
-cardListObj = liftA3 CardListAPI (map cardObj . playerDraft) (map cardObj . playerPool) (playerPicked)
+cardListObj = liftA3 CardListAPI (map cardObj . _playerDraft) (map cardObj . _playerPool) (_playerPicked)
 
 -- Spock can't differ /foo/bar from /foo/bar/, so we take a raw path and
 -- see if there was a trailing slash
@@ -110,7 +111,7 @@ roomComponent = do
         diff <- atomically $ do
           rooms <- traverse readTVar <=< readTVar $ trooms
           let
-            activeRooms = IM.filter (\x -> diffUTCTime curtime (roomLastActive x) < 900) $ rooms
+            activeRooms = IM.filter (\x -> diffUTCTime curtime (x ^. roomLastActive) < 900) $ rooms
           modifyTVar trooms $ flip IM.intersection activeRooms
           return (IM.size rooms - IM.size activeRooms)
         unless (diff == 0) . putStrLn $ "Sweep thread: cleaned " ++ show diff ++ " rooms"
@@ -129,7 +130,7 @@ roomComponent = do
     rid <- nextRoomNumber
     trooms <- stateRooms <$> getState
     curtime <- liftIO $ getCurrentTime
-    troom <- liftIO $ newTVarIO . (\x -> x { roomHost = uuid }) $ createRoom boosters curtime
+    troom <- liftIO $ newTVarIO . (roomHost .~ uuid) $ createRoom boosters curtime
     liftIO . atomically $ do
       modifyTVar trooms $ (IM.insert rid troom)
       addPlayerSTM uuid $ troom
@@ -144,7 +145,7 @@ roomComponent = do
     name <- T.decodeUtf8 <$> body
     uuid <- getUserUUID <$> readSession
     liftIO . atomically $ do
-      modifyTVar troom $ (modifyPlayer uuid (\x -> x { playerName = name }))
+      modifyTVar troom $ (roomPlayer uuid . playerName .~ name)
       broadcastEvent PlayersUpdate troom
 
   get cardPickR $ \ruid pick -> withRoom ruid $ \(_, troom) -> do
@@ -154,8 +155,8 @@ roomComponent = do
     room <- liftIO . atomically $ do
       modifyTVar troom (transferCard uuid pick)
       readTVar troom
-    when (all playerPicked . roomPlayers $ room) . liftIO . atomically $ do
-      if (all (null . playerDraft) . roomPlayers $ room)
+    when (all _playerPicked . _roomPlayers $ room) . liftIO . atomically $ do
+      if (all (null . _playerDraft) . _roomPlayers $ room)
       then crackBooster tboxes troom
       else modifyTVar troom (rotateCards)
       broadcastEvent CardListUpdate troom
@@ -168,11 +169,11 @@ roomComponent = do
     db <- cardDb <$> getState
     tboxes <- stateBoxes <$> getState
     room <- liftIO . readTVarIO $ troom
-    if roomHost room /= uuid
+    if room ^. roomHost /= uuid
     then setStatus forbidden403 >> text "You're not the host!"
-    else unless (roomClosed room) $ liftIO . atomically $ do
+    else unless (room ^. roomClosed) $ liftIO . atomically $ do
         crackBooster tboxes troom
-        modifyTVar troom (\r -> r { roomClosed = True })
+        modifyTVar troom (roomClosed .~ True)
         broadcastEvent CardListUpdate troom
 
   get eventsR $ \ruid -> withRoom ruid $ \(_, troom) -> do
@@ -187,11 +188,11 @@ roomComponent = do
               CardListUpdate -> encode . cardlistToPayload
                 . cardListObj
                 . flip (M.!) uuid
-                . roomPlayers
+                . _roomPlayers
                 $ room
               PlayersUpdate -> encode . playerlistToPayload
                 . map playerObj 
-                . M.elems . roomPlayers
+                . M.elems . _roomPlayers
                 $ room
               ServerShutdown -> encode shutdownPayload
               _ -> encode unknownPayload
@@ -203,6 +204,7 @@ roomComponent = do
         forkPingThread conn 60
         atomically $ terminateEventQueue uuid troom
         atomically $ do
+          void $ initEventQueue uuid troom
           sendEvent CardListUpdate uuid troom
           sendEvent PlayersUpdate uuid troom
         void . forkIO $ wsLoop conn
@@ -210,7 +212,7 @@ roomComponent = do
       backupApp _ respond = respond $ responseLBS status400 [] "Not a WebSocket request"
       customPong = do
         curtime <- getCurrentTime
-        atomically $ modifyTVar troom (\r -> r { roomLastActive = curtime } )
+        atomically $ modifyTVar troom (roomLastActive .~ curtime)
     respondApp $ websocketsOr (defaultConnectionOptions { connectionOnPong = customPong }) wsApp backupApp
 
   get joinR $ \ruid -> flip (withRoom' ruid) (const $ text "Already joined") $ \(_, troom) -> do
@@ -243,8 +245,8 @@ withRoom' rhashid failedac action = do
         Just troom -> do
           room <- liftIO . readTVarIO $ troom
           uuid <- getUserUUID <$> readSession
-          let isMember = M.member uuid $ roomPlayers room
-          if roomClosed room && not isMember
+          let isMember = M.member uuid $ room ^. roomPlayers
+          if room ^. roomClosed && not isMember
           then do
             setStatus forbidden403
             text "The room is closed"
