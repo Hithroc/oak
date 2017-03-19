@@ -6,6 +6,7 @@ import Control.Applicative
 import Data.Maybe
 import qualified Data.Set as S
 import qualified Data.Vector as V
+import Data.Either (partitionEithers)
 
 import Oak.Core.Booster.Types
 
@@ -37,7 +38,13 @@ mapSet ((p, f) : xs) s = (S.map f . S.filter p $ s) `S.union` mapSet xs s
 fixDatabase :: CardDatabase -> CardDatabase
 fixDatabase (CardDatabase db) = CardDatabase . mapSet royalRareMapping $ db
 
-instance FromJSON CardDatabase where
+data JMeta a b = JMeta a b
+runJMeta :: JMeta a b -> (a, b)
+runJMeta (JMeta a b) = (a, b)
+toJMeta :: (a, b) -> JMeta a b
+toJMeta = uncurry JMeta
+
+instance FromJSON (JMeta [(String, Value)] CardDatabase) where
   parseJSON (Object v) = do
     arr <- v .: "data"
     case arr of
@@ -45,7 +52,9 @@ instance FromJSON CardDatabase where
           let 
             al :: [Value]
             al = V.toList a
-          cs <- sequence $ map (\x -> (Just <$> parseJSON x) <|> return Nothing) al
-          return . CardDatabase . S.fromList . catMaybes $ cs
+            fromJSONCard v = case fromJSON v of
+              Error s -> Left (s, v)
+              Success x -> Right x
+          return . toJMeta . fmap (CardDatabase . S.fromList) . partitionEithers . map fromJSONCard $ al
       _ -> mzero
   parseJSON _ = mzero

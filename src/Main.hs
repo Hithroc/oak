@@ -20,10 +20,12 @@ main = do
     Left e -> hPutStrLn stderr ("Failed to parse config file:\n" ++ e)
     Right cfg -> do
       maybe (return ()) (setCurrentDirectory) (cfg_root cfg)
-      db <- eitherDecode <$> BS.readFile ("data/db.json")
+      db <- fmap runJMeta . eitherDecode <$> BS.readFile ("data/db.json")
       cycles <- eitherDecode <$> BS.readFile ("data/cycles.json")
-      case fmap fixDatabase db >>= \y -> fmap (\x -> (y,x)) cycles of
+      case db >>= \y -> fmap (\x -> (y,x)) cycles of
         Left e -> hPutStrLn stderr e
-        Right (db', cycles') -> do
-          (\(CardDatabase x) -> print $ length x) db'
-          runApp cfg db' (convertBoosterCycles db' cycles')
+        Right ((fcards :: [(String,Value)], db'), cycles') -> do
+          (\(CardDatabase x) -> putStrLn $ "Total read cards: " ++ show (length x)) db'
+          putStrLn $ "Failed to read " ++ show (length fcards) ++ " cards."
+          putStrLn $ "This is a list of failed cards: "++ unlines (fmap show fcards)
+          runApp cfg (fixDatabase db') (convertBoosterCycles (fixDatabase db') cycles')

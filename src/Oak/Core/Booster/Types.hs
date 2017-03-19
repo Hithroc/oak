@@ -11,6 +11,7 @@ import Data.SafeCopy
 import GHC.Generics (Generic)
 import Control.DeepSeq (NFData)
 import Text.Read (readMaybe)
+import Data.Monoid
 
 data Rarity -- Darling
   = Fixed
@@ -52,10 +53,38 @@ data Expansion
   | RockNRave
   | CelestialSolstice
   | GenericFixed
+  | SandsOfTime
   deriving (Eq, Ord, Show, Read, Generic)
 deriveSafeCopy 1 'base ''Expansion
 
 instance NFData Expansion
+
+data Color
+  = None
+  | Wild
+  | Blue
+  | White
+  | Orange
+  | Purple
+  | Yellow
+  | Pink
+  | Rainbow
+  deriving (Eq, Ord, Show, Read, Generic)
+deriveSafeCopy 1 'base ''Color
+
+instance NFData Color
+
+data CardOld =
+  CardOld
+  { oldCardRarity :: Rarity
+  , oldCardExpansion :: Expansion
+  , oldCardName :: Text
+  , oldCardNumber :: Text
+  }
+  deriving (Eq, Ord, Read, Generic)
+deriveSafeCopy 1 'base ''CardOld
+
+instance NFData CardOld
 
 data Card =
   Card
@@ -63,15 +92,35 @@ data Card =
   , cardExpansion :: Expansion
   , cardName :: Text
   , cardNumber :: Text
+  , cardReq :: Maybe [Int]
+  , cardColors :: [Color]
+  , cardSecReq :: Maybe Int
+  , cardWildReq :: Maybe Int
+  , cardCost :: Maybe Int
   }
   deriving (Eq, Ord, Read, Generic)
-deriveSafeCopy 1 'base ''Card
+
+instance Migrate Card where
+  type MigrateFrom Card = CardOld
+  migrate c
+    = Card
+    { cardRarity = oldCardRarity c
+    , cardExpansion = oldCardExpansion c
+    , cardName = oldCardName c
+    , cardNumber = oldCardNumber c
+    , cardReq = Nothing
+    , cardColors = []
+    , cardSecReq = Nothing
+    , cardWildReq = Nothing
+    , cardCost = Nothing
+    }
+
+deriveSafeCopy 2 'extension ''Card
 
 instance NFData Card
 
 instance Show Card where
-  show (Card r s n i) = show s ++ " " ++ show i ++ " " ++ show r ++ " " ++ unpack n
-
+  show c = show (cardExpansion c) ++ " " ++ show (cardNumber c) ++ " " ++ show (cardRarity c) ++ " " ++ unpack (cardName c)
 
 data BoosterType
   = PremiereBooster
@@ -146,6 +195,7 @@ instance FromJSON Rarity where
   parseJSON (String "RR") = return RoyalRare
   parseJSON (String "F")  = return Fixed
   parseJSON (String "P")  = return Promotional
+  parseJSON (String s) = fail . T.unpack $ "Unknown rarity: " <> s
   parseJSON _ = mzero
 
 instance FromJSON Expansion where
@@ -156,6 +206,11 @@ instance FromJSON Expansion where
   parseJSON (String "EO") = return EquestrianOdysseys
   parseJSON (String "HM") = return HighMagic
   parseJSON (String "MT") = return MarksInTime
+  parseJSON (String "RR") = return RockNRave
+  parseJSON (String "CS") = return CelestialSolstice
+  parseJSON (String "ST") = return SandsOfTime
+  parseJSON (String "GF" ) = return GenericFixed
+  parseJSON (String s) = fail . T.unpack $ "Unknown set: " <> s
   parseJSON _ = mzero
 
 instance FromJSON Card where
@@ -164,4 +219,9 @@ instance FromJSON Card where
                       <*> v .: "set"
                       <*> v .: "fullname"
                       <*> v .: "number"
+                      <*> ((>>= readMaybe) <$> v .:? "req")
+                      <*> return []
+                      <*> v .: "secreq"
+                      <*> v .: "wildreq"
+                      <*> v .: "cost"
   parseJSON _ = mzero
