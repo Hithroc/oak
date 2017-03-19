@@ -40,8 +40,8 @@ makeLenses ''PlayerEventQueue
 
 newtype MPlayerEventQueue = MPlayerEventQueue (Maybe PlayerEventQueue)
 
-mPlayerEventQueueIso :: Iso MPlayerEventQueue (Maybe PlayerEventQueue)
-mPlayerEventQueueIso = iso (\(MPlayerEventQueue q) -> q) (\q -> MPlayerEventQueue q)
+mPlayerEventQueueIso :: Iso' MPlayerEventQueue (Maybe PlayerEventQueue)
+mPlayerEventQueueIso = iso (\(MPlayerEventQueue q) -> q) MPlayerEventQueue
 
 instance Show MPlayerEventQueue where
   show _ = "EventQueue"
@@ -74,7 +74,7 @@ defaultPlayer
   , _playerDraft = []
   , _playerPool = []
   , _playerPicked = False
-  , _playerEventQueue = (MPlayerEventQueue Nothing)
+  , _mPlayerEventQueue = (MPlayerEventQueue Nothing)
   }
 
 data Room
@@ -90,7 +90,7 @@ data Room
 deriveSafeCopy 1 'base ''Room
 makeLenses ''Room
 
-roomPlayer :: UUID -> Prism' Room Player
+roomPlayer :: UUID -> Traversal' Room Player
 roomPlayer uuid = roomPlayers . at uuid . _Just
 
 createRoom :: [BoosterType] -> UTCTime -> Room
@@ -115,7 +115,7 @@ initEventQueue uuid troom = do
     Just eq -> return eq
     Nothing -> do
       eq <- PlayerEventQueue <$> newTQueue
-      modifyTVar troom (queue ?~ eq)
+      --modifyTVar troom (queue ?~ eq)
       --modifyTVar troom (modifyPlayer uuid (\p -> p { playerEventQueue = MPlayerEventQueue $ Just eq }))
       return eq
 
@@ -130,18 +130,17 @@ addPlayerSTM uuid = flip modifyTVar (addPlayer uuid)
 addPlayerIO :: UUID -> TVar Room -> IO ()
 addPlayerIO uuid = atomically . addPlayerSTM uuid
 
-eventPrism :: _
-eventPrism target = roomPlayers . target . playerEventQueue . _Just . playerEvents %%~ flip writeTQueue e
+eventPrism e target = roomPlayers . target . playerEventQueue . _Just . playerEvents %%~ \x -> writeTQueue x e >> return x
 
 broadcastEvent :: Event -> TVar Room -> STM ()
-broadcastEvent e troom = void $ readTVar troom >>= eventPrism each
+broadcastEvent e troom = void $ readTVar troom >>= eventPrism e each
 {-broadcastEvent e troom = readTVar troom >>= sequence_
   . map (flip writeTQueue e . playerEvents <=< flip initEventQueue troom)
   . M.keys
   . roomPlayers-}
 
 sendEvent :: Event -> UUID -> TVar Room -> STM ()
-sendEvent e uuid = void $ readTVar troom >>= eventPrism (at uuid . _Just)
+sendEvent e uuid troom = void $ readTVar troom >>= eventPrism e (at uuid . _Just)
 
 nextEvent :: UUID -> TVar Room -> IO (Maybe Event)
 nextEvent uuid troom = do
@@ -156,20 +155,21 @@ crackBooster :: TVar (M.Map BoosterType (S.Stream [Card])) -> TVar Room -> STM (
 crackBooster tboxes troom = do
   room <- readTVar troom
   boxes <- readTVar tboxes
-  case roomBoosters room of
+  case room ^. roomBoosters of
     [] -> return ()
     (btype:bs) -> case M.lookup btype boxes of
       Nothing -> return ()
       Just boxStream -> do
-        (pl', boxStream') <- runStateT (traverse givePlayer $ roomPlayers room) boxStream
+        (pl', boxStream') <- runStateT (traverse givePlayer $ room ^. roomPlayers) boxStream
         modifyTVar tboxes (M.insert btype boxStream')
-        modifyTVar troom (\r -> r { roomPlayers = pl', roomBoosters = bs, roomDirection = changeDirection (roomDirection room) })
+        modifyTVar troom (\r -> r { _roomPlayers = pl', _roomBoosters = bs })
+        modifyTVar troom (roomDirection %~ changeDirection)
   where
     givePlayer :: MonadState (S.Stream [Card]) m => Player -> m Player
     givePlayer p = do
       booster <- head . S.take 1 <$> get
       modify S.tail
-      return $ p { playerDraft = playerDraft p ++ booster, playerPicked = False }
+      return $ p { _playerDraft = _playerDraft p ++ booster, _playerPicked = False }
 
 pop :: Int -> [a] -> (Maybe a, [a])
 pop _ [] = (Nothing, [])
@@ -179,18 +179,18 @@ pop i l
     where (a,b) = splitAt i l
 
 transferCard :: UUID -> Int -> Room -> Room
-transferCard uuid index room = modifyPlayer uuid (\p -> if playerPicked p then p else f p) room
+transferCard uuid index = roomPlayer uuid %~ f
   where
-    f p = p { playerPicked = True, playerDraft = snd . popped $ p, playerPool = maybe id (:) (fst . popped $ p) (playerPool p) }
-    popped p = pop (index `mod` length (playerDraft p)) $ playerDraft p
+    f p = if _playerPicked p then p else p { _playerPicked = True, _playerDraft = snd . popped $ p, _playerPool = maybe id (:) (fst . popped $ p) (p ^. playerPool) }
+    popped p = pop index $ p ^. playerDraft
 
 transferAllCards :: Room -> Room
-transferAllCards r = r { roomPlayers = fmap (\p -> p { playerPool = playerDraft p, playerDraft = playerPool p }) $ roomPlayers r }
+transferAllCards = roomPlayers . traverse %~ \p -> p { _playerPool = _playerDraft p, _playerDraft = _playerPool p }
 
 crackAllBoosters :: TVar (M.Map BoosterType (S.Stream [Card])) -> TVar Room -> STM ()
 crackAllBoosters tboxes troom = do
   room <- readTVar troom
-  if null $ roomBoosters room
+  if null $ room ^. roomBoosters
   then modifyTVar troom transferAllCards
   else do
     crackBooster tboxes troom
@@ -202,9 +202,9 @@ shift DLeft (x:xs) = xs ++ [x]
 shift DRight xs = last xs:init xs
 
 rotateCards :: Room -> Room
-rotateCards room = room { roomPlayers = pl' }
+rotateCards room = room & roomPlayers .~ pl'
   where
-    pl = roomPlayers room
-    dir = roomDirection room
-    drafts = shift dir . map (playerDraft . snd) $ M.toList pl
-    pl' = M.fromList . zipWith (\draft (uuid,player) -> (uuid, player { playerDraft = draft, playerPicked = False } )) drafts . M.toList $ pl
+    pl = room ^. roomPlayers
+    dir = room ^. roomDirection
+    drafts = shift dir . map (_playerDraft . snd) $ M.toList pl
+    pl' = M.fromList . zipWith (\draft (uuid,player) -> (uuid, player { _playerDraft = draft, _playerPicked = False } )) drafts . M.toList $ pl
