@@ -11,6 +11,7 @@ import Data.SafeCopy
 import GHC.Generics (Generic)
 import Control.DeepSeq (NFData)
 import Text.Read (readMaybe)
+import Data.Maybe
 import Data.Monoid
 
 data Rarity -- Darling
@@ -98,7 +99,7 @@ data Card =
   , cardWildReq :: Maybe Int
   , cardCost :: Maybe Int
   }
-  deriving (Eq, Ord, Read, Generic)
+  deriving (Eq, Ord, Read, Show, Generic)
 
 instance Migrate Card where
   type MigrateFrom Card = CardOld
@@ -118,9 +119,6 @@ instance Migrate Card where
 deriveSafeCopy 2 'extension ''Card
 
 instance NFData Card
-
-instance Show Card where
-  show c = show (cardExpansion c) ++ " " ++ show (cardNumber c) ++ " " ++ show (cardRarity c) ++ " " ++ unpack (cardName c)
 
 data BoosterType
   = PremiereBooster
@@ -213,14 +211,25 @@ instance FromJSON Expansion where
   parseJSON (String s) = fail . T.unpack $ "Unknown set: " <> s
   parseJSON _ = mzero
 
+readSplit :: Read a => String -> Maybe [a]
+readSplit "" = return []
+readSplit str = do
+  rx <- readMaybe x
+  rxs <- readSplit str'
+  return (rx:rxs)
+  where
+    (x, str') = safeTail <$> break (=='/') str
+    safeTail [] = []
+    safeTail (_:xs) = xs
+
 instance FromJSON Card where
   parseJSON (Object v) = Card
                       <$> v .: "rarity"
                       <*> v .: "set"
                       <*> v .: "fullname"
                       <*> v .: "number"
-                      <*> ((>>= readMaybe) <$> v .:? "req")
-                      <*> return []
+                      <*> ((>>= readSplit) <$> v .:? "req")
+                      <*> ((fromMaybe [] . readSplit) <$> v .: "color")
                       <*> v .: "secreq"
                       <*> v .: "wildreq"
                       <*> v .: "cost"

@@ -5,10 +5,12 @@ import Data.Aeson
 import Oak.Web
 import Oak.Config
 import Oak.Core.Booster
+import Control.Monad
 import System.IO
 import System.Environment
 import System.Directory
 import qualified Data.ByteString.Lazy as BS
+import qualified Data.Set as S
 
 main :: IO ()
 main = do
@@ -25,7 +27,8 @@ main = do
       case db >>= \y -> fmap (\x -> (y,x)) cycles of
         Left e -> hPutStrLn stderr e
         Right ((fcards :: [(String,Value)], db'), cycles') -> do
-          (\(CardDatabase x) -> putStrLn $ "Total read cards: " ++ show (length x)) db'
-          putStrLn $ "Failed to read " ++ show (length fcards) ++ " cards."
-          putStrLn $ "This is a list of failed cards: "++ unlines (fmap show fcards)
+          (\(CardDatabase x) -> putStrLn $ "Total cards in the database: " ++ show (length x)) db'
+          when (length fcards > 0) $ do
+            hPutStrLn stderr $ "This is a list of failed cards:\n" ++ unlines (fmap show fcards)
+            error $ "Failed to read " ++ show (length fcards) ++ " cards."
           runApp cfg (fixDatabase db') (convertBoosterCycles (fixDatabase db') cycles')

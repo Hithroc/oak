@@ -13,7 +13,6 @@ import Oak.Core.Booster.Types
 data CardDatabase = CardDatabase (S.Set Card)
   deriving Show
 
-
 -- Hardoced RR mappings
 royalRareMapping :: [(Card -> Bool, Card -> Card)]
 royalRareMapping =
