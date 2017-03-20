@@ -14,6 +14,8 @@ import qualified Data.Set as S
 
 main :: IO ()
 main = do
+  hSetBuffering stdout NoBuffering
+  hSetBuffering stderr NoBuffering
   argv <- getArgs
   (opts, _) <- compilerOpts argv
   args <- getSettings opts
