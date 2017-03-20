@@ -72,8 +72,18 @@ data Color
   | Rainbow
   deriving (Eq, Ord, Show, Read, Generic)
 deriveSafeCopy 1 'base ''Color
-
 instance NFData Color
+
+data CardType
+  = Mane
+  | Problem
+  | Resource
+  | Event
+  | Troublemaker
+  | Friend
+  deriving (Eq, Ord, Read, Show, Generic)
+deriveSafeCopy 1 'base ''CardType
+instance NFData CardType
 
 data CardOld =
   CardOld
@@ -98,6 +108,7 @@ data Card =
   , cardSecReq :: Maybe Int
   , cardWildReq :: Maybe Int
   , cardCost :: Maybe Int
+  , cardType :: CardType
   }
   deriving (Eq, Ord, Read, Show, Generic)
 
@@ -114,6 +125,7 @@ instance Migrate Card where
     , cardSecReq = Nothing
     , cardWildReq = Nothing
     , cardCost = Nothing
+    , cardType = Friend
     }
 
 deriveSafeCopy 2 'extension ''Card
@@ -233,4 +245,5 @@ instance FromJSON Card where
                       <*> v .: "secreq"
                       <*> v .: "wildreq"
                       <*> v .: "cost"
+                      <*> (maybe mzero return . readMaybe =<< v .: "type")
   parseJSON _ = mzero

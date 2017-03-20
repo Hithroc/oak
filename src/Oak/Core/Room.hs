@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Oak.Core.Room where
 import Data.UUID (UUID, nil)
+import Data.UUID.V4
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text (Text)
@@ -58,6 +59,7 @@ data Player
   , _playerDraft :: [Card]
   , _playerPool :: [Card]
   , _playerPicked :: Bool
+  , _playerBot :: Bool
   , _mPlayerEventQueue :: MPlayerEventQueue
   }
   deriving Show
@@ -74,6 +76,7 @@ defaultPlayer
   , _playerDraft = []
   , _playerPool = []
   , _playerPicked = False
+  , _playerBot = False
   , _mPlayerEventQueue = (MPlayerEventQueue Nothing)
   }
 
@@ -106,6 +109,9 @@ createRoom btype time
 
 addPlayer :: UUID -> Room -> Room
 addPlayer uuid room = room & roomPlayers . at uuid ?~ defaultPlayer
+
+addBot :: Room -> IO Room
+addBot room = nextRandom >>= \uuid -> return $ room & roomPlayers . at uuid ?~ defaultPlayer { _playerName = "Sweetie Belle", _playerBot = True }
 
 initEventQueue :: UUID -> TVar Room -> STM PlayerEventQueue
 initEventQueue uuid troom = do
