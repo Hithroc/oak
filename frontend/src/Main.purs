@@ -43,6 +43,9 @@ import Data.Argonaut.Core as A
 import Data.Argonaut.Parser as A
 import Data.Tuple
 import Data.Either
+import Data.Foreign (toForeign, unsafeFromForeign)
+import Control.Monad.Except (runExcept)
+import Data.Foreign.Index (prop)
 
 
 type ManeState
@@ -143,7 +146,11 @@ mane =
           log $ "onmessage: Received '" <> received <> "'"
           putVar avar received
         pure unit
-      H.liftEff $ socket.onclose $= \event -> alert' $ "Connection was closed by the server"
+      let
+        runCloseEvent event = case runExcept (prop "reason" (toForeign event)) of
+          Right x -> unsafeFromForeign x
+          Left _ -> ""
+      H.liftEff $ socket.onclose $= \event -> alert' $ "Connection was closed: " <> runCloseEvent event
       H.liftEff $ socket.onerror $= \event -> alert' $ "Connection with the server was lost"
       forever $ do
         e <- H.liftAff $ takeVar avar
