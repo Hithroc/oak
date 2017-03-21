@@ -109,6 +109,7 @@ data Card =
   , cardWildReq :: Maybe Int
   , cardCost :: Maybe Int
   , cardType :: CardType
+  , cardPower :: Maybe Int
   }
   deriving (Eq, Ord, Read, Show, Generic)
 
@@ -126,6 +127,7 @@ instance Migrate Card where
     , cardWildReq = Nothing
     , cardCost = Nothing
     , cardType = Friend
+    , cardPower = Nothing
     }
 
 deriveSafeCopy 2 'extension ''Card
@@ -246,4 +248,5 @@ instance FromJSON Card where
                       <*> v .: "wildreq"
                       <*> v .: "cost"
                       <*> (maybe mzero return . readMaybe =<< v .: "type")
+                      <*> ((>>=readMaybe) <$> v .:? "power")
   parseJSON _ = mzero
