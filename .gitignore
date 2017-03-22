@@ -3,3 +3,4 @@
 *.bin
 acid_sessions/
 !frontend/bower.json
+tags
