@@ -15,8 +15,10 @@ import Data.Serialize (Get)
 import Data.Time.Clock
 import qualified Data.Stream.Infinite as S
 import Control.Lens
+import Data.List
 
 import Oak.Core.Booster
+import Oak.Core.Room.Bot
 
 data Event
   = PlayersUpdate
@@ -110,8 +112,10 @@ createRoom btype time
 addPlayer :: UUID -> Room -> Room
 addPlayer uuid room = room & roomPlayers . at uuid ?~ defaultPlayer
 
-addBot :: Room -> IO Room
-addBot room = nextRandom >>= \uuid -> return $ room & roomPlayers . at uuid ?~ defaultPlayer { _playerName = "Sweetie Belle", _playerBot = True }
+addBot :: TVar Room -> IO ()
+addBot troom = do
+  uuid <- nextRandom
+  atomically $ modifyTVar troom (roomPlayers . at uuid ?~ defaultPlayer { _playerName = "Sweetie Belle", _playerBot = True })
 
 initEventQueue :: UUID -> TVar Room -> STM PlayerEventQueue
 initEventQueue uuid troom = do
@@ -153,6 +157,16 @@ nextEvent uuid troom = do
   case e of
     TerminateListener -> return Nothing
     _ -> return $ Just e
+
+botsPick :: TVar Room -> STM ()
+botsPick troom = do
+  room <- readTVar troom
+  let bots = M.filter (_playerBot) $ room ^. roomPlayers
+      scorePick pl = do
+        (card, _) <- listToMaybe $ sortedScore (_playerPool pl) (_playerDraft pl)
+        card `elemIndex` _playerDraft pl
+      tfs = fmap (\(uuid, pl) -> transferCard uuid $ fromMaybe 0 (scorePick pl)) . M.toList $ bots
+  modifyTVar troom (foldr (.) id tfs)
 
 crackBooster :: TVar (M.Map BoosterType (S.Stream [Card])) -> TVar Room -> STM ()
 crackBooster tboxes troom = do

@@ -97,6 +97,8 @@ roomComponent = do
     roomBaseR   = "room"
     createRoomR = roomBaseR <//> "create" <//> var
     roomR       = roomBaseR <//> var
+    addBotR     = roomR <//> "addbot"
+    becomeBotR  = roomR <//> "becomebot"
     nameChangeR = roomR <//> "changename"
     cardPickR   = roomR <//> "pick"       <//> var
     startR      = roomR <//> "start"
@@ -141,6 +143,19 @@ roomComponent = do
   get roomR $ \(ruid :: T.Text) -> directoryHook $ withRoom ruid $ \_ -> do
     file "text/html" "static/room.html"
 
+  get addBotR $ \(ruid :: T.Text) -> withRoom ruid $ \(_, troom) -> do
+    room <- liftIO . atomically $ readTVar troom
+    uuid <- getUserUUID <$> readSession
+    if uuid == room ^. roomHost
+    then liftIO $ do
+      addBot troom
+      atomically $ broadcastEvent PlayersUpdate troom
+    else text "You're not the host"
+
+  get becomeBotR $ \(ruid :: T.Text) -> withRoom ruid $ \(_, troom) -> do
+    uuid <- getUserUUID <$> readSession
+    liftIO . atomically $ modifyTVar troom (roomPlayer uuid . playerBot .~ True)
+
   post nameChangeR $ \ruid -> withRoom ruid $ \(_, troom) -> do
     name <- T.decodeUtf8 <$> body
     uuid <- getUserUUID <$> readSession
@@ -159,6 +174,7 @@ roomComponent = do
       if (all (null . _playerDraft) . _roomPlayers $ room)
       then crackBooster tboxes troom
       else modifyTVar troom (rotateCards)
+      botsPick troom
       broadcastEvent CardListUpdate troom
     liftIO . atomically $ do
       sendEvent CardListUpdate uuid troom 
@@ -174,6 +190,7 @@ roomComponent = do
     else unless (room ^. roomClosed) $ liftIO . atomically $ do
         crackBooster tboxes troom
         modifyTVar troom (roomClosed .~ True)
+        botsPick troom
         broadcastEvent CardListUpdate troom
 
   get eventsR $ \ruid -> withRoom ruid $ \(_, troom) -> do
