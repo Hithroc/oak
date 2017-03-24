@@ -60,4 +60,4 @@ constructBox bt
 boxStream :: MonadRandom m => CardDatabase -> BoosterCycles -> BoosterType -> m (S.Stream [Card])
 boxStream db bcycles btype = do
   box <- generateBox db bcycles btype
-  (S.prepend box) <$> boxStream db bcycles btype
+  S.prepend box <$> boxStream db bcycles btype

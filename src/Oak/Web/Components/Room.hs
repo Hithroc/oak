@@ -1,20 +1,21 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Oak.Web.Components.Room (roomComponent) where
 
-import Web.Spock
+import Web.Spock hiding (head)
 import Network.HTTP.Types.Status
 import System.Random
 import Control.Concurrent.STM
 import Control.Monad.IO.Class
+import Control.Monad.Random
 import Control.Monad
 import qualified Data.Map as M
 import qualified Data.IntMap as IM
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Stream.Infinite as S
 import Data.Aeson.TH
 import Data.Aeson (encode)
 import Control.Applicative
-import Control.Monad.Random
 import Network.Wai (rawPathInfo)
 import Data.Monoid
 import Web.Spock.Worker
@@ -124,19 +125,29 @@ roomComponent = do
   liftIO $ addWork WorkNow () worker
 
   get createRoomR $ \boosters -> do
-    (sealed :: Maybe T.Text) <- param "sealed"
-    db <- cardDb <$> getState
+    (roomType :: Maybe T.Text) <- param "type" -- FIXME should be custom type instead of text
     tboxes <- stateBoxes <$> getState
     liftIO . putStrLn $ "createroom: " ++ show boosters
     uuid <- getUserUUID <$> readSession
     rid <- nextRoomNumber
     trooms <- stateRooms <$> getState
-    curtime <- liftIO $ getCurrentTime
+    curtime <- liftIO getCurrentTime
     troom <- liftIO $ newTVarIO . (roomHost .~ uuid) $ createRoom boosters curtime
     liftIO . atomically $ do
-      modifyTVar trooms $ (IM.insert rid troom)
-      addPlayerSTM uuid $ troom
-    liftIO $ flip (maybe (return ())) sealed $ \_ -> atomically $ crackAllBoosters tboxes troom
+      modifyTVar trooms $ IM.insert rid troom
+      addPlayerSTM uuid troom
+    case roomType of
+      Just "sealed" -> liftIO . atomically $ do
+        crackAllBoosters tboxes troom
+        modifyTVar troom (roomClosed .~ True)
+      Just "box" -> do
+        db <- cardDb <$> getState
+        bcycles <- cardCycles <$> getState
+        box <- liftIO $ evalRandIO (boxStream db bcycles (head boosters)) -- FIXME: Taking 36 boosters is not an okay solution
+        liftIO . atomically $ do
+          modifyTVar troom (roomPlayer uuid . playerPool .~ concat (S.take 36 box))
+          modifyTVar troom (roomClosed .~ True)
+      _ -> return ()
 
     redirect (renderRoute roomR (toHashid rid))
 

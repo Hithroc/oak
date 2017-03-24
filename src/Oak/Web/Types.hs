@@ -18,6 +18,7 @@ data GlobalState
   = GlobalState
   { stateRooms :: Rooms
   , cardDb :: CardDatabase
+  , cardCycles :: BoosterCycles
   , stateBoxes :: TVar (Map BoosterType (Stream [Card]))
   }
 data UserSession

@@ -92,10 +92,10 @@ runApp cfg db bcycles = do
   streams <- traverse (evalRandIO . boxStream db bcycles) btypes
   let bmap = M.fromList $ zip btypes streams
   tboxes <- newTVarIO bmap
-  spockCfg <- defaultSpockCfg (UserSession UUID.nil) PCNoDatabase (GlobalState trooms db tboxes)
+  spockCfg <- defaultSpockCfg (UserSession UUID.nil) PCNoDatabase (GlobalState trooms db bcycles tboxes)
   let newSessionCfg s = s { sc_store = SessionStoreInstance sessStore }
   spockapp <- spockAsApp (spock (spockCfg { spc_errorHandler = customError, spc_sessionCfg = newSessionCfg (spc_sessionCfg spockCfg) }) app)
-  runSettings (settings) (spockapp)
+  runSettings settings spockapp
 
 app :: SpockM () UserSession GlobalState ()
 app = do
