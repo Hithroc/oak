@@ -83,6 +83,7 @@ data ManeQuery a
   | Initialize a
   | StartGame a
   | OpenDeckURL a
+  | AddBot a
 
 -- This operator reminds me of train wagons
 --           8
@@ -114,6 +115,7 @@ mane =
           [ HH.slot' CP.cp1 unit playerList unit absurd
           , HH.div [HP.class_ (ClassName "menu")]
             [ HH.button [HE.onClick (HE.input_ StartGame)] [HH.text "Start game"]
+            , HH.button [HE.onClick (HE.input_ AddBot)] [HH.text "Add bot"]
             , HH.button [HE.onClick (HE.input_ OpenDeckURL)] [HH.text "Export deck"]
             ]
           ]
@@ -192,6 +194,9 @@ mane =
       pure next
     eval (StartGame next) = do
       (response :: AX.AffjaxResponse Unit) <- H.liftAff $ AX.get ("start")
+      pure next
+    eval (AddBot next) = do
+      (response :: AX.AffjaxResponse Unit) <- H.liftAff $ AX.get ("addbot")
       pure next
     eval (OpenDeckURL next) = do
       deckurl <- H.query' CP.cp3 unit (H.request GetDeckURL)
