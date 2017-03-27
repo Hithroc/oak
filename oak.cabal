@@ -61,7 +61,7 @@ executable oak
                       ,uuid >= 1.3.13
                       ,stm >= 2.4.4.1
                       ,containers >= 0.5.7.1
-                      ,hashids
+                      ,hashids >= 1.0
                       ,http-types >= 0.9.1
                       ,spoon >= 0.3.1
                       ,wai-middleware-static >= 0.8.1
