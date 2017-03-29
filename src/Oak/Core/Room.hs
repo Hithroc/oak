@@ -35,7 +35,7 @@ changeDirection :: Direction -> Direction
 changeDirection DLeft = DRight
 changeDirection DRight = DLeft
 
-data PlayerEventQueue
+newtype PlayerEventQueue
   = PlayerEventQueue
   { _playerEvents :: TQueue Event
   }
@@ -49,7 +49,7 @@ mPlayerEventQueueIso = iso (\(MPlayerEventQueue q) -> q) MPlayerEventQueue
 instance Show MPlayerEventQueue where
   show _ = "EventQueue"
 
-instance SafeCopy (MPlayerEventQueue) where
+instance SafeCopy MPlayerEventQueue where
   version = 1
   putCopy (MPlayerEventQueue Nothing) = contain $ safePut ()
   putCopy (MPlayerEventQueue _) = putCopy (MPlayerEventQueue Nothing)
@@ -79,7 +79,7 @@ defaultPlayer
   , _playerPool = []
   , _playerPicked = False
   , _playerBot = False
-  , _mPlayerEventQueue = (MPlayerEventQueue Nothing)
+  , _mPlayerEventQueue = MPlayerEventQueue Nothing
   }
 
 data Room
@@ -141,6 +141,7 @@ addPlayerSTM uuid = flip modifyTVar (addPlayer uuid)
 addPlayerIO :: UUID -> TVar Room -> IO ()
 addPlayerIO uuid = atomically . addPlayerSTM uuid
 
+eventPrism :: Event -> ((Player -> STM Player) -> Map UUID Player -> STM (Map UUID Player)) -> Room -> STM Room
 eventPrism e target = roomPlayers . target . playerEventQueue . _Just . playerEvents %%~ \x -> writeTQueue x e >> return x
 
 broadcastEvent :: Event -> TVar Room -> STM ()
@@ -153,7 +154,7 @@ nextEvent :: UUID -> TVar Room -> IO (Maybe Event)
 nextEvent uuid troom = do
   eq <- atomically $ initEventQueue uuid troom
   let tq = eq ^. playerEvents
-  e <- atomically $ readTQueue $ tq
+  e <- atomically . readTQueue $ tq
   case e of
     TerminateListener -> return Nothing
     _ -> return $ Just e
@@ -161,7 +162,7 @@ nextEvent uuid troom = do
 botsPick :: TVar Room -> STM ()
 botsPick troom = do
   room <- readTVar troom
-  let bots = M.filter (_playerBot) $ room ^. roomPlayers
+  let bots = M.filter _playerBot $ room ^. roomPlayers
       scorePick pl = do
         (card, _) <- listToMaybe $ sortedScore (_playerPool pl) (_playerDraft pl)
         card `elemIndex` _playerDraft pl
@@ -176,9 +177,9 @@ crackBooster tboxes troom = do
     [] -> return ()
     (btype:bs) -> case M.lookup btype boxes of
       Nothing -> return ()
-      Just boxStream -> do
-        (pl', boxStream') <- runStateT (traverse givePlayer $ room ^. roomPlayers) boxStream
-        modifyTVar tboxes (M.insert btype boxStream')
+      Just stream -> do
+        (pl', stream') <- runStateT (traverse givePlayer $ room ^. roomPlayers) stream
+        modifyTVar tboxes (M.insert btype stream')
         modifyTVar troom (\r -> r { _roomPlayers = pl', _roomBoosters = bs })
         modifyTVar troom (roomDirection %~ changeDirection)
   where
@@ -196,10 +197,10 @@ pop i l
     where (a,b) = splitAt i l
 
 transferCard :: UUID -> Int -> Room -> Room
-transferCard uuid index = roomPlayer uuid %~ f
+transferCard uuid cid = roomPlayer uuid %~ f
   where
     f p = if _playerPicked p then p else p { _playerPicked = True, _playerDraft = snd . popped $ p, _playerPool = maybe id (:) (fst . popped $ p) (p ^. playerPool) }
-    popped p = pop index $ p ^. playerDraft
+    popped p = pop cid $ p ^. playerDraft
 
 transferAllCards :: Room -> Room
 transferAllCards = roomPlayers . traverse %~ \p -> p { _playerPool = _playerDraft p, _playerDraft = _playerPool p }
