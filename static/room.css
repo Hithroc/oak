@@ -91,6 +91,23 @@ button {
   font-family: 'Monsterrat', sans-serif;
 }
 
+.addbot:hover:before {
+    position:absolute;
+    color: black;
+    display:block;
+    z-index:1000;
+    padding: 5px;
+    background-color: white;
+    border: 1px solid #2C180D;
+    text-align:center;
+    font-size:10px;
+    font-weight:normal;
+    margin-left:5px;
+    margin-top:17px;
+    width: 130px;
+    content: "Warning: bots right now are very stupid. I suggest to avoid using them if possible";
+}
+
 .name-input > button {
   margin-left: 0.5em;
   min-width: 7em;
