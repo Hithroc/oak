@@ -129,13 +129,14 @@ roomComponent = do
     tboxes <- stateBoxes <$> getState
     liftIO . putStrLn $ "createroom: " ++ show boosters
     uuid <- getUserUUID <$> readSession
+    name <- userName <$> readSession
     rid <- nextRoomNumber
     trooms <- stateRooms <$> getState
     curtime <- liftIO getCurrentTime
     troom <- liftIO $ newTVarIO . (roomHost .~ uuid) $ createRoom boosters curtime
     liftIO . atomically $ do
       modifyTVar trooms $ IM.insert rid troom
-      addPlayerSTM uuid troom
+      addPlayerSTM uuid name troom
     case roomType of
       Just "sealed" -> liftIO . atomically $ do
         crackAllBoosters tboxes troom
@@ -173,6 +174,7 @@ roomComponent = do
     liftIO . atomically $ do
       modifyTVar troom $ (roomPlayer uuid . playerName .~ name)
       broadcastEvent PlayersUpdate troom
+    modifySession $ \x -> x { userName = name }
 
   get cardPickR $ \ruid pick -> withRoom ruid $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
@@ -245,8 +247,9 @@ roomComponent = do
 
   get joinR $ \ruid -> flip (withRoom' ruid) (const $ text "Already joined") $ \(_, troom) -> do
     uuid <- getUserUUID <$> readSession
+    name <- userName <$> readSession
     liftIO . atomically $ do
-      addPlayerSTM uuid $ troom
+      addPlayerSTM uuid name troom
       broadcastEvent PlayersUpdate troom
     redirect $ renderRoute roomR ruid
 

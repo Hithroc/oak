@@ -8,6 +8,7 @@ import Data.SafeCopy
 import Data.UUID.SafeCopy ()
 import Data.Map (Map)
 import Data.Stream.Infinite (Stream)
+import Data.Text (Text)
 
 import Oak.Core.Room
 import Oak.Core.Booster
@@ -21,9 +22,22 @@ data GlobalState
   , cardCycles :: BoosterCycles
   , stateBoxes :: TVar (Map BoosterType (Stream [Card]))
   }
+data UserSessionOld
+  = UserSessionOld
+  { oldGetUserUUID :: UUID
+  }
+  deriving Show
+deriveSafeCopy 1 'base ''UserSessionOld
+
 data UserSession
   = UserSession
   { getUserUUID :: UUID
+  , userName :: Text
   }
   deriving Show
-deriveSafeCopy 1 'base ''UserSession
+
+instance Migrate UserSession where
+  type MigrateFrom UserSession = UserSessionOld
+  migrate u = UserSession (oldGetUserUUID u) "Trixie Lulamoon"
+
+deriveSafeCopy 2 'extension ''UserSession

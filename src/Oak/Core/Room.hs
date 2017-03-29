@@ -109,8 +109,8 @@ createRoom btype time
   , _roomLastActive = time
   }
 
-addPlayer :: UUID -> Room -> Room
-addPlayer uuid room = room & roomPlayers . at uuid ?~ defaultPlayer
+addPlayer :: UUID -> Text -> Room -> Room
+addPlayer uuid name = roomPlayers . at uuid ?~ defaultPlayer { _playerName = name }
 
 addBot :: TVar Room -> IO ()
 addBot troom = do
@@ -135,11 +135,8 @@ terminateEventQueue uuid troom = do
   sendEvent TerminateListener uuid troom
   modifyTVar troom (roomPlayer uuid . playerEventQueue .~ Nothing)
 
-addPlayerSTM :: UUID -> TVar Room -> STM ()
-addPlayerSTM uuid = flip modifyTVar (addPlayer uuid)
-
-addPlayerIO :: UUID -> TVar Room -> IO ()
-addPlayerIO uuid = atomically . addPlayerSTM uuid
+addPlayerSTM :: UUID -> Text -> TVar Room -> STM ()
+addPlayerSTM uuid name = flip modifyTVar (addPlayer uuid name)
 
 eventPrism :: Event -> ((Player -> STM Player) -> Map UUID Player -> STM (Map UUID Player)) -> Room -> STM Room
 eventPrism e target = roomPlayers . target . playerEventQueue . _Just . playerEvents %%~ \x -> writeTQueue x e >> return x
