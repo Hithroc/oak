@@ -7,6 +7,7 @@ dependencies:
   pre:
     - curl -sSL https://get.haskellstack.org/ | sh
     - stack setup
+    - npm install -g rimraf
     - curl https://www.npmjs.com/install.sh | sh
     - npm update
     - npm install -g purescript pulp bower
