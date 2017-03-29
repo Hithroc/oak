@@ -10,7 +10,7 @@ dependencies:
   pre:
     - curl -sSL https://get.haskellstack.org/ | sh
     - stack setup
-    - npm install -g purescript pulp bower
+    - npm install -g purescript@0.10.7 pulp bower
   override:
     - stack install --only-dependencies --no-terminal
     - bower install:
