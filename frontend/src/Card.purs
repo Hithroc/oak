@@ -16,6 +16,7 @@ type Card =
   { set :: String
   , number :: String
   , rarity :: String
+  , smoozifying :: Boolean
   }
 
 jsonToCard :: A.Json -> Maybe Card
@@ -23,7 +24,7 @@ jsonToCard = A.foldJsonObject Nothing $ \jmap -> do
   set <- M.lookup "set" jmap >>= A.toString
   num <- M.lookup "num" jmap >>= A.toString
   rarity <- M.lookup "rarity" jmap >>= A.toString
-  pure { set: set, number: num, rarity: rarity }
+  pure { set: set, number: num, rarity: rarity, smoozifying: set == "mt" }
 
 -- Internal representation of Card
 type CardState =
@@ -32,6 +33,8 @@ type CardState =
   , fallbacked :: Boolean
   , pickid :: Int
   , rarity :: String
+  , smoozified :: Boolean
+  , smoozifying :: Boolean
   }
 
 data CardQuery a
@@ -39,6 +42,7 @@ data CardQuery a
   | Fallback a
   | Update (Tuple Int Card) a
   | GetCID (String -> a)
+  | Smoozify Boolean a
 
 data CardMessage
   = Picked Int
@@ -78,13 +82,13 @@ card =
     }
   where
     initialState :: Tuple Int Card -> CardState
-    initialState c = { cid: fst $ getPonyHeadID $ snd c , ponyid: getPonyHeadID $ snd c, fallbacked: false, pickid: fst c, rarity: _.rarity $ snd c }
+    initialState c = { cid: fst $ getPonyHeadID $ snd c , ponyid: getPonyHeadID $ snd c, fallbacked: false, pickid: fst c, rarity: _.rarity $ snd c, smoozifying: _.smoozifying $ snd c, smoozified: true}
     render :: CardState -> H.ComponentHTML CardQuery
     render st =
         HH.div [ HP.class_ (ClassName "card"), HE.onClick (HE.input_ Pick) ]
-        [ HH.div [ HP.class_ (ClassName "image-hover-hack") ] []
+        [ HH.div [ HP.class_ (ClassName "image-hover-hack"), HE.onMouseEnter (HE.input_ $ Smoozify false), HE.onMouseLeave (HE.input_ $ Smoozify true)] []
         , HH.img $
-            [ HP.src $ getImageURL st
+            [ HP.src $ if st.smoozified && st.smoozifying then "http://ponyhead.com/img/cards/mt74.jpg" else getImageURL st
             , HP.alt (show st.fallbacked)
             , HP.class_ (ClassName "card-image")
             ] 
@@ -110,3 +114,6 @@ card =
         GetCID reply -> do
           st <- H.get
           pure (reply st.cid)
+        Smoozify x next -> do
+          H.modify $ _ { smoozified = x }
+          pure next

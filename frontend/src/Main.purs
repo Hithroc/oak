@@ -19,7 +19,7 @@ import Network.HTTP.Affjax (AJAX)
 import Data.Argonaut.Core as A
 import Network.HTTP.Affjax as AX
 import Data.StrMap as M
-import Data.Maybe(Maybe(..), maybe)
+import Data.Maybe(Maybe(..), maybe, isNothing, fromMaybe)
 import Data.Traversable(sequence)
 import CardList (cardList, CardListQuery(..), CardListMessage(..))
 import Card (Card(..), jsonToCard, card)
@@ -46,10 +46,13 @@ import Data.Either
 import Data.Foreign (toForeign, unsafeFromForeign)
 import Control.Monad.Except (runExcept)
 import Data.Foreign.Index (prop)
+import Data.Foldable (any)
 
 
 type ManeState
   = { banner :: Maybe String
+    , smoozifying :: Maybe Boolean
+    , lastEvent :: Maybe Event
     }
 
 type CardListObj
@@ -83,6 +86,7 @@ data ManeQuery a
   | Initialize a
   | StartGame a
   | OpenDeckURL a
+  | ToggleSmoozify a
   | AddBot a
 
 -- This operator reminds me of train wagons
@@ -99,7 +103,7 @@ type ManeAff eff = Aff (Effects2 eff)
 mane :: forall m. H.Component HH.HTML ManeQuery Unit Void (ManeAff m)
 mane =
   H.lifecycleParentComponent
-  { initialState : const { banner : Nothing }
+  { initialState : const { banner : Nothing, smoozifying: Nothing, lastEvent: Nothing }
   , render
   , eval
   , initializer: Just (H.action Initialize)
@@ -114,10 +118,10 @@ mane =
         [ HH.div [HP.class_ (ClassName "bar")] 
           [ HH.slot' CP.cp1 unit playerList unit absurd
           , HH.div [HP.class_ (ClassName "menu")]
-            [ HH.button [HE.onClick (HE.input_ StartGame)] [HH.text "Start game"]
+            ([ HH.button [HE.onClick (HE.input_ StartGame)] [HH.text "Start game"]
             , HH.button [HE.onClick (HE.input_ AddBot), HP.class_ (ClassName "addbot")] [HH.text "Add bot"]
             , HH.button [HE.onClick (HE.input_ OpenDeckURL)] [HH.text "Export deck"]
-            ]
+            ] <> if isNothing st.smoozifying then [] else [HH.button [HE.onClick (HE.input_ ToggleSmoozify)] [HH.text "Toogle Smoozify"]])
           ]
         , HH.div [HP.class_ (ClassName "content")]
           [ HH.div [ HP.class_ (ClassName "content-container") ]
@@ -188,8 +192,10 @@ mane =
           case jsonToCardList pldata of
             Nothing -> pure unit
             Just cl -> do
-              H.query' CP.cp2 unit (H.action (NewCards cl.draft cl.picked))
-              H.query' CP.cp3 unit (H.action (NewCards cl.pool false))
+              H.modify $ \st -> st { smoozifying = if any (\c -> c.set == "mt") cl.draft && isNothing st.smoozifying then Just true else st.smoozifying, lastEvent = Just event }
+              sm <- H.gets (fromMaybe false <<< _.smoozifying)
+              H.query' CP.cp2 unit (H.action (NewCards (map (\c -> c { smoozifying = sm && c.smoozifying }) cl.draft) cl.picked))
+              H.query' CP.cp3 unit (H.action (NewCards (map (\c -> c { smoozifying = false }) cl.pool) false))
               pure unit
       pure next
     eval (StartGame next) = do
@@ -204,6 +210,12 @@ mane =
         win <- window
         open (maybe "" id deckurl) "" "" win
       pure next
+    eval (ToggleSmoozify next) = do
+      H.modify $ \st -> st { smoozifying = map not st.smoozifying }
+      ev <- H.gets _.lastEvent
+      case ev of
+        Nothing -> pure next
+        Just ev' -> eval (ProcessEvent ev' next)
 
 
 main :: forall e. Eff (HA.HalogenEffects (Effects e)) Unit
