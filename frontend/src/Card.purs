@@ -50,11 +50,13 @@ getPonyHeadID st = Tuple (getId toUpper) (getId toLower)
     st' =
       if toLower st.set == "pr" && st.number == "213" -- Applejack Farm Foremare id fix. #typonyhead
       then st { set = "pr", number = "PF2" }
+      else if toLower st.set == "pr" && st.number == "212"
+      then st { set = "pr", number = "PF1" }
       else st
     -- We want to replace minus after toUpper, because n is always lowercased for negatives in PonyHead
     -- Everything would work anyway if we replaced '-' to 'n' before uppercasing,
     -- because the code will just fallback to lowercased version during onError handle,
-    -- but it's better to avoid that.
+    -- but it's better to avoid that to decrease load times.
     -- #typonyhead
     getId f =  toLower st'.set <> replaceMinus (f st'.number)
     replaceMinus = replaceAll (Pattern "-") (Replacement "n")

@@ -41,7 +41,7 @@ instance Show Rarity where
   show RoyalRare   = "RR"
   show Fixed       = "F"
   show ParallelFoil = "ƒ"
-  show Promotional = "P"
+  show Promotional = "Pƒ"
 
 data Expansion
   = Premiere

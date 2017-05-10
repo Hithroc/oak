@@ -2,15 +2,13 @@ module Oak.Core.Booster.Database where
 
 import Data.Aeson
 import Control.Monad
-import Control.Applicative
-import Data.Maybe
 import qualified Data.Set as S
 import qualified Data.Vector as V
 import Data.Either (partitionEithers)
 
 import Oak.Core.Booster.Types
 
-data CardDatabase = CardDatabase (S.Set Card)
+newtype CardDatabase = CardDatabase (S.Set Card)
   deriving Show
 
 -- Hardoced RR mappings

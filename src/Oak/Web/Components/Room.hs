@@ -281,7 +281,7 @@ withRoom' rhashid failedac action = do
           then do
             setStatus forbidden403
             text "The room is closed"
-          else do
+          else
             if isMember
             then action (rid, troom)
             else failedac (rid, troom)
