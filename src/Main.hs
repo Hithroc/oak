@@ -10,9 +10,6 @@ import System.Environment
 import System.Directory
 import qualified Data.ByteString.Lazy as BS
 
-f :: (Foldable f, Num a) => f a -> a
-f = foldr (+) 0
-
 main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering

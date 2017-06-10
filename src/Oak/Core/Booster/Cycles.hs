@@ -52,6 +52,7 @@ boosterCards AbsoluteDiscordBooster    = filterExpansion AbsoluteDiscord
 boosterCards EquestrianOdysseysBooster = filterExpansion EquestrianOdysseys
 boosterCards HighMagicBooster          = filterExpansion HighMagic
 boosterCards MarksInTimeBooster        = filterExpansion MarksInTime
+boosterCards DefendersOfEquestriaBooster = filterExpansion DefendersOfEquestria
 
 convertBoosterCycles :: CardDatabase -> M.Map BoosterType (M.Map Rarity JSONCardCycle) -> BoosterCycles
 convertBoosterCycles (CardDatabase db) = M.mapWithKey (\e v -> fmap (convertJsonCycle (boosterCards e db)) v)
