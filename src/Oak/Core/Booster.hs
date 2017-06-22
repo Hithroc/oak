@@ -30,7 +30,7 @@ generateBox (CardDatabase cards) bcycles btype = do
     cycles = maybe M.empty id $ M.lookup btype bcycles
     groupRarities rars = fmap (\x -> (length x, head x)) . group $ rars
   cycles' <- traverse randomizeCycle cycles
-  let go = {-shuffleM <=< -}traverse (getCycledBooster . groupRarities) $ boxStruct
+  let go = shuffleM <=< traverse (getCycledBooster . groupRarities) $ boxStruct
   evalStateT (runReaderT go (boosterCards btype cards)) cycles'
 
 regularBooster :: PackSequence -> [PackSequence]
