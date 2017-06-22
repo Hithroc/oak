@@ -16,7 +16,7 @@ import qualified Data.Stream.Infinite as S
 cloudHatePredicate :: forall a. a -> Bool
 cloudHatePredicate = const True
 
-pickSequence' :: MonadRandom m => PackSequence -> [(PackSequence, Rational)] -> m PackSequence
+pickSequence' :: MonadRandom m => a -> [(a, Rational)] -> m a
 pickSequence' def xs = fromList $ (def, comr) : xs -- MonadRandom's fromList
   where comr = max 0 . foldl (-) 1 . map snd $ xs
 
@@ -30,7 +30,7 @@ generateBox (CardDatabase cards) bcycles btype = do
     cycles = maybe M.empty id $ M.lookup btype bcycles
     groupRarities rars = fmap (\x -> (length x, head x)) . group $ rars
   cycles' <- traverse randomizeCycle cycles
-  let go = shuffleM <=< traverse (getCycledBooster . groupRarities) $ boxStruct
+  let go = {-shuffleM <=< -}traverse (getCycledBooster . groupRarities) $ boxStruct
   evalStateT (runReaderT go (boosterCards btype cards)) cycles'
 
 regularBooster :: PackSequence -> [PackSequence]
@@ -57,6 +57,12 @@ constructBox bt
     r <- pickSequence [(UltraRareSeq, 27 % 100)]
     let quadrant rar = FrontCommonSeq : FrontCommonSeq : rar : replicate 6 FrontCommonSeq
     return . map regularBooster . concat $ quadrant r : replicate 3 (quadrant UltraRareSeq)
+
+  | bt `elem` [DefendersOfEquestriaBooster]
+    = do
+      let packSeq x = [(x, SuperRareSeq), (False, FrontCommonSeq), (not x, UltraRareSeq), (False, FrontCommonSeq), (False, FrontCommonSeq), (x, SuperRareSeq), (False, FrontCommonSeq), (False, FrontCommonSeq), (False, FrontCommonSeq)]
+      return . map (uncurry defendersBooster) . concat . zipWith (flip ($)) (cycle [False, True]) . replicate 4 $ packSeq
+
 
   | otherwise
     = do

@@ -156,7 +156,7 @@ textToBooster "AbsoluteDiscord" = Just AbsoluteDiscordBooster
 textToBooster "EquestrianOdysseys" = Just EquestrianOdysseysBooster
 textToBooster "HighMagic" = Just HighMagicBooster
 textToBooster "MarksInTime" = Just MarksInTimeBooster
-textToBooster "DefendersOfEquestria" = Just MarksInTimeBooster
+textToBooster "DefendersOfEquestria" = Just DefendersOfEquestriaBooster
 textToBooster _ = Nothing
 
 instance FromJSON BoosterType where
