@@ -4,5 +4,5 @@
 /output/
 /generated-docs/
 /.psc*
+/.purs*
 /.psa*
-/dist/

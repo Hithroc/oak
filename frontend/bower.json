@@ -1,5 +1,5 @@
 {
-  "name": "oak-frontend",
+  "name": "frontend",
   "ignore": [
     "**/.*",
     "node_modules",
@@ -7,14 +7,14 @@
     "output"
   ],
   "dependencies": {
-    "purescript-prelude": "^2.4.0",
-    "purescript-console": "^2.0.0",
-    "purescript-halogen": "1.0.0",
+    "purescript-prelude": "^3.0.0",
+    "purescript-console": "^3.0.0",
+    "purescript-halogen": "2.0.1",
     "purescript-affjax": "*",
     "purescript-websocket-simple": "*",
     "purescript-infinite-list": "0.2.2"
   },
   "devDependencies": {
-    "purescript-psci-support": "^2.0.0"
+    "purescript-psci-support": "^3.0.0"
   }
 }

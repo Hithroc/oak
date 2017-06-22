@@ -16,9 +16,12 @@ import qualified Data.Stream.Infinite as S
 cloudHatePredicate :: forall a. a -> Bool
 cloudHatePredicate = const True
 
-pickRarity :: MonadRandom m => [(Rarity, Rational)] -> m Rarity
-pickRarity xs = fromList $ (Common, comr) : xs -- MonadRandom's fromList
+pickSequence' :: MonadRandom m => PackSequence -> [(PackSequence, Rational)] -> m PackSequence
+pickSequence' def xs = fromList $ (def, comr) : xs -- MonadRandom's fromList
   where comr = max 0 . foldl (-) 1 . map snd $ xs
+
+pickSequence :: MonadRandom m => [(PackSequence, Rational)] -> m PackSequence
+pickSequence = pickSequence' FrontCommonSeq
 
 generateBox :: MonadRandom m => CardDatabase -> BoosterCycles -> BoosterType -> m [[Card]]
 generateBox (CardDatabase cards) bcycles btype = do
@@ -30,29 +33,36 @@ generateBox (CardDatabase cards) bcycles btype = do
   let go = shuffleM <=< traverse (getCycledBooster . groupRarities) $ boxStruct
   evalStateT (runReaderT go (boosterCards btype cards)) cycles'
 
-regularBooster :: Rarity -> [Rarity]
-regularBooster Common = replicate 8 Common ++ [Rare] ++ replicate 3 Uncommon
-regularBooster r = replicate 7 Common ++ [Rare, r] ++ replicate 3 Uncommon
+regularBooster :: PackSequence -> [PackSequence]
+regularBooster FrontCommonSeq = replicate 8 FrontCommonSeq ++ [RareSeq] ++ replicate 3 UncommonSeq
+regularBooster r = replicate 7 FrontCommonSeq ++ [RareSeq, r] ++ replicate 3 UncommonSeq
 
-constructBox :: MonadRandom m => BoosterType -> m [[Rarity]]
+defendersBooster :: Bool -> PackSequence -> [PackSequence]
+defendersBooster shift seq = replicate (3+shiftFront) FrontCommonSeq ++ [seq] ++ [RareSeq] ++ replicate 3 UncommonSeq ++ replicate (3+shiftBack) BackCommonSeq
+  where
+    shiftBool x = if x then 1 else 0
+    shiftFront = shiftBool shift
+    shiftBack = shiftBool (not shift)
+
+constructBox :: MonadRandom m => BoosterType -> m [[PackSequence]]
 constructBox bt
   | bt == PremiereBooster
     = do
-    r <- pickRarity [(UltraRare, 77 % 100)]
-    let quadrant rar = Common : Common : rar : replicate 6 Common
-    return . map regularBooster . concat $ quadrant r : quadrant Common : replicate 2 (quadrant UltraRare)
+    r <- pickSequence [(UltraRareSeq, 77 % 100)]
+    let quadrant rar = FrontCommonSeq : FrontCommonSeq : rar : replicate 6 FrontCommonSeq
+    return . map regularBooster . concat $ quadrant r : quadrant FrontCommonSeq : replicate 2 (quadrant UltraRareSeq)
 
   | bt `elem` [CanterlotNightsBooster, TheCrystalGamesBooster, AbsoluteDiscordBooster]
     = do
-    r <- pickRarity [(UltraRare, 27 % 100)]
-    let quadrant rar = Common : Common : rar : replicate 6 Common
-    return . map regularBooster . concat $ quadrant r : replicate 3 (quadrant UltraRare)
+    r <- pickSequence [(UltraRareSeq, 27 % 100)]
+    let quadrant rar = FrontCommonSeq : FrontCommonSeq : rar : replicate 6 FrontCommonSeq
+    return . map regularBooster . concat $ quadrant r : replicate 3 (quadrant UltraRareSeq)
 
   | otherwise
     = do
-    r <- pickRarity [(RoyalRare, 1 % 6)]
-    let quadrant = SuperRare : Common : UltraRare : Common : SuperRare : replicate 4 Common
-        specialQuadrant = SuperRare : Common : UltraRare : Common : SuperRare : Common : r : replicate 2 Common
+    r <- pickSequence [(RoyalRareSeq, 1 % 6)]
+    let quadrant = SuperRareSeq : FrontCommonSeq : UltraRareSeq : FrontCommonSeq : SuperRareSeq : replicate 4 FrontCommonSeq
+        specialQuadrant = SuperRareSeq : FrontCommonSeq : UltraRareSeq : FrontCommonSeq : SuperRareSeq : FrontCommonSeq : r : replicate 2 FrontCommonSeq
     return . map regularBooster . concat $ replicate 3 quadrant ++ [specialQuadrant]
 
 boxStream :: MonadRandom m => CardDatabase -> BoosterCycles -> BoosterType -> m (S.Stream [Card])
