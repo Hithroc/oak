@@ -185,13 +185,14 @@ button {
   border-color: #92CDF4;
   background-color: #D8EEFB;
   position: relative;
+  cursor: pointer;
 }
 
 .cardlist-picked .card-image {
   filter: grayscale(100%);
 }
 
-.card-image, .image-hover-hack {
+.card-image {
   top: 0;
   left: 0;
   bottom: 0;
@@ -203,24 +204,17 @@ button {
   position: absolute;
   z-index: 1;
   transition: z-index 50ms step-end, transform 300ms ease;
+  pointer-events: none;
 }
 
-/* I am not sure if that's me being bad at CSS or it's just CSS is awful */
-.image-hover-hack {
-  transform: scale(1.2);
-  z-index: 3;
-  cursor: pointer;
-}
-
-.cardlist-picked .image-hover-hack {
+.cardlist-picked {
   cursor: auto;
 }
 
-.image-hover-hack:hover + .card-image {
+.card:hover > .card-image {
   z-index: 2;
   transform: scale(2.2);
   transition: z-index 300ms step-start, transform 300ms ease;
-  filter: none;
 }
 
 

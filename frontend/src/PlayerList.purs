@@ -77,6 +77,6 @@ playerList =
           pure next
         MakeNamechangeRequest next -> do
           n <- H.gets _.inputname
-          H.liftAff $ AX.post_ "changename" n
+          _ <- H.liftAff $ AX.post_ "changename" n
           H.modify (_ { inputname = "" })
           pure next

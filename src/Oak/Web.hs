@@ -88,7 +88,7 @@ runApp cfg db bcycles = do
         Left e -> putStrLn $ "Failed to deserialize rooms: " ++ e
         Right rooms -> atomically $ readTVar rooms >>= writeTVar trooms
   sessStore <- oakSessionStore
-  let btypes = [PremiereBooster, CanterlotNightsBooster, TheCrystalGamesBooster, AbsoluteDiscordBooster, EquestrianOdysseysBooster, HighMagicBooster, MarksInTimeBooster, DefendersOfEquestriaBooster]
+  let btypes = [PremiereBooster, CanterlotNightsBooster, TheCrystalGamesBooster, AbsoluteDiscordBooster, EquestrianOdysseysBooster, HighMagicBooster, MarksInTimeBooster, DefendersOfEquestriaBooster, SeaquestriaAndBeyondBooster]
   streams <- traverse (evalRandIO . boxStream db bcycles) btypes
   let bmap = M.fromList $ zip btypes streams
   tboxes <- newTVarIO bmap

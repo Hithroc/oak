@@ -56,6 +56,7 @@ data Expansion
   | GenericFixed
   | SandsOfTime
   | DefendersOfEquestria
+  | SeaquestriaAndBeyond
   deriving (Eq, Ord, Show, Read, Generic)
 deriveSafeCopy 1 'base ''Expansion
 
@@ -144,6 +145,7 @@ data BoosterType
   | HighMagicBooster
   | MarksInTimeBooster
   | DefendersOfEquestriaBooster
+  | SeaquestriaAndBeyondBooster
   | CustomBooster (S.Set Card) [(Rarity, Rational)]
   deriving (Eq, Show, Read, Ord)
 deriveSafeCopy 1 'base ''BoosterType
@@ -157,6 +159,7 @@ textToBooster "EquestrianOdysseys" = Just EquestrianOdysseysBooster
 textToBooster "HighMagic" = Just HighMagicBooster
 textToBooster "MarksInTime" = Just MarksInTimeBooster
 textToBooster "DefendersOfEquestria" = Just DefendersOfEquestriaBooster
+textToBooster "SeaquestriaAndBeyond" = Just SeaquestriaAndBeyondBooster
 textToBooster _ = Nothing
 
 instance FromJSON BoosterType where
@@ -175,6 +178,7 @@ setToLetters EquestrianOdysseys = "eo"
 setToLetters HighMagic          = "hm"
 setToLetters MarksInTime        = "mt"
 setToLetters DefendersOfEquestria = "de"
+setToLetters SeaquestriaAndBeyond = "sb"
 setToLetters _ = "uk" -- Change this later
 
 lettersToSet :: String -> Maybe Expansion
@@ -186,6 +190,7 @@ lettersToSet "eo" = Just EquestrianOdysseys
 lettersToSet "hm" = Just HighMagic
 lettersToSet "mt" = Just MarksInTime
 lettersToSet "de" = Just DefendersOfEquestria
+lettersToSet "sb" = Just SeaquestriaAndBeyond
 lettersToSet _ = Nothing
 
 instance FromHttpApiData BoosterType where
@@ -198,6 +203,7 @@ instance FromHttpApiData BoosterType where
     | str == "hm" = Right HighMagicBooster
     | str == "mt" = Right MarksInTimeBooster
     | str == "de" = Right DefendersOfEquestriaBooster
+    | str == "sb" = Right SeaquestriaAndBeyondBooster
     | otherwise = Left "Unknown set!"
   parseQueryParam = parseUrlPiece
 
@@ -227,8 +233,9 @@ instance FromJSON Expansion where
   parseJSON (String "RR") = return RockNRave
   parseJSON (String "CS") = return CelestialSolstice
   parseJSON (String "ST") = return SandsOfTime
-  parseJSON (String "GF" ) = return GenericFixed
-  parseJSON (String "DE" ) = return DefendersOfEquestria
+  parseJSON (String "GF") = return GenericFixed
+  parseJSON (String "DE") = return DefendersOfEquestria
+  parseJSON (String "SB") = return SeaquestriaAndBeyond
   parseJSON (String s) = fail . T.unpack $ "Unknown set: " <> s
   parseJSON _ = mzero
 

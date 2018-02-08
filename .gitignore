@@ -6,3 +6,6 @@ acid_sessions/
 frontend/dist/
 tags
 TAGS
+dist-newstyle/
+.ghc*
+cabal.project.local

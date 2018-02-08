@@ -45,7 +45,7 @@ import Data.Tuple
 import Data.Either
 import Data.Foreign (toForeign, unsafeFromForeign)
 import Control.Monad.Except (runExcept)
-import Data.Foreign.Index (prop)
+import Data.Foreign.Index (readProp)
 
 
 type ManeState
@@ -93,7 +93,7 @@ data ManeQuery a
 type ManeChildQuery = PlayerListQuery <\/> CardListQuery <\/> CardListQuery <\/> Const Void
 type ManeChildSlot = Unit \/ Unit \/ Unit \/ Void
 
-type Effects e = (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW, alert :: ALERT, ws :: WEBSOCKET| e)
+type Effects e = (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW, alert :: ALERT, ws :: WEBSOCKET | e)
 type Effects2 e = Effects (dom :: DOM, ref :: REF, avar :: AVAR, err :: EXCEPTION | e)
 type ManeAff eff = Aff (Effects2 eff)
 mane :: forall m. H.Component HH.HTML ManeQuery Unit Void (ManeAff m)
@@ -135,26 +135,26 @@ mane =
       locHref <- H.liftEff $ L.href loc
       let
         alert' = flip alert win
-        wsurl = replaceAll (Pattern "https://") (Replacement "wss://") 
+        wsurl = replaceAll (Pattern "https://") (Replacement "wss://")
              <<<replaceAll (Pattern "http://") (Replacement "ws://")
               $ locHref
       H.liftAff $ log wsurl
-      avar <- H.liftAff makeVar
+      avar <- H.liftAff makeEmptyVar
       Connection socket <- H.liftEff $ newWebSocket (URL $ wsurl <> "events") []
-      
+
       H.liftEff $ socket.onmessage $= \event -> do
-        launchAff $ do
+        _ <- launchAff $ do
           let received = runMessage (runMessageEvent event)
           log $ "onmessage: Received '" <> received <> "'"
-          putVar avar received
+          putVar received avar
         pure unit
       let
-        runCloseEvent event = case runExcept (prop "reason" (toForeign event)) of
+        runCloseEvent event = case runExcept (readProp "reason" (toForeign event)) of
           Right x -> unsafeFromForeign x
           Left _ -> ""
       H.liftEff $ socket.onclose $= \event -> alert' $ "Connection was closed: " <> runCloseEvent event
       H.liftEff $ socket.onerror $= \event -> alert' $ "Connection with the server was lost"
-      forever $ do
+      _ <- forever $ do
         e <- H.liftAff $ takeVar avar
         H.liftAff $ log e
         let
@@ -171,7 +171,7 @@ mane =
                 H.liftEff $ socket.onerror $= \event -> pure unit
                 H.liftEff $ socket.close
                 H.modify $ _ { banner = Just "Server is shutting down. Please wait 10 seconds until it restarts. The page will be reloaded automatically." }
-                H.liftAff $ AFF.later' 10000 (log "Test" >>= \_ -> void $ AFF.liftEff' $ L.reload loc)
+                H.liftAff $ AFF.delay (AFF.Milliseconds 10000.0) >>= \_ -> (log "Test" >>= \_ -> void $ AFF.liftEff' $ L.reload loc)
                 pure next
               _ -> pure next
       pure next
@@ -182,14 +182,14 @@ mane =
           case jsonToPlayers pldata of
             Nothing -> pure unit
             Just players -> do
-              H.query' CP.cp1 unit (H.action $ UpdateUsernames players)
+              _ <- H.query' CP.cp1 unit (H.action $ UpdateUsernames players)
               pure unit
         CardListUpdate pldata -> do
           case jsonToCardList pldata of
             Nothing -> pure unit
             Just cl -> do
-              H.query' CP.cp2 unit (H.action (NewCards cl.draft cl.picked))
-              H.query' CP.cp3 unit (H.action (NewCards cl.pool false))
+              _ <- H.query' CP.cp2 unit (H.action (NewCards cl.draft cl.picked))
+              _ <- H.query' CP.cp3 unit (H.action (NewCards cl.pool false))
               pure unit
       pure next
     eval (StartGame next) = do
@@ -200,13 +200,13 @@ mane =
       pure next
     eval (OpenDeckURL next) = do
       deckurl <- H.query' CP.cp3 unit (H.request GetDeckURL)
-      H.liftEff $ do
+      _ <- H.liftEff $ do
         win <- window
         open (maybe "" id deckurl) "" "" win
       pure next
 
 
-main :: forall e. Eff (HA.HalogenEffects (Effects e)) Unit
+main :: forall e. Eff (HA.HalogenEffects (Effects2 e)) Unit
 main = HA.runHalogenAff do
   body <- HA.awaitBody
   --runUI (card { set: "cs", number: "F1" }) unit body

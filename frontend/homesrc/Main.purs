@@ -24,6 +24,7 @@ import DOM.HTML.Types(WINDOW)
 import DOM (DOM)
 import DOM.HTML(window)
 import DOM.HTML.Window(open)
+import DOM.Node.ParentNode(QuerySelector(..))
 import BoosterSelector
 import Data.Array (mapWithIndex, replicate)
 import Data.Foldable (intercalate)
@@ -31,8 +32,6 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Eff.Exception (throwException, error)
 import Data.Int (fromString)
 import Data.Array as A
-import Data.NonEmpty ((:|))
-import Data.InfiniteList as IL
 import Data.Tuple
 
 
@@ -74,8 +73,8 @@ mane =
   , receiver : const Nothing
   }
   where
-    boosterStream :: IL.InfiniteList (Tuple Int BoosterType) BoosterType
-    boosterStream = IL.repeat $ EquestrianOdysseys :| [HighMagic, MarksInTime, MarksInTime, EquestrianOdysseys, EquestrianOdysseys, HighMagic, MarksInTime]
+    boosters :: Array BoosterType
+    boosters = [EquestrianOdysseys, HighMagic, MarksInTime, MarksInTime, EquestrianOdysseys, EquestrianOdysseys, HighMagic, MarksInTime]
     render :: ManeState -> H.ParentHTML ManeQuery BoosterSelectorQuery Int (ManeAff m)
     render st =
       HH.div [ HP.class_ (ClassName "create-room-block")] $
@@ -103,7 +102,7 @@ mane =
         , HH.button [ HP.disabled $ st.boosters <= 1, HE.onClick (HE.input_ RemoveBooster) ] [ HH.text "Remove pack" ]
         ]
       ]
-      <> mapWithIndex (\i x -> HH.slot i boosterSelector x absurd) (IL.take st.boosters boosterStream)
+      <> mapWithIndex (\i x -> HH.slot i boosterSelector x absurd) (A.take st.boosters boosters)
       <>
       [ HH.div [HP.class_ (ClassName "version")]
         [ HH.div_ [HH.text $ maybe "Version unknown" id st.oakVersion <> " "]
@@ -140,13 +139,13 @@ mane =
             Draft -> packstr
             Sealed -> packstr <> "?type=sealed"
             BoosterBox -> packstr <> "?type=box"
-      H.liftEff $ do
+      _ <- H.liftEff $ do
         win <- window
         open openurl "_self" "" win
       pure next
 
-main :: forall e. Eff (HA.HalogenEffects (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW | e)) Unit
+main :: forall e. Eff (HA.HalogenEffects (ajax :: AX.AJAX, console :: CONSOLE, window :: WINDOW, dom :: DOM | e)) Unit
 main = HA.runHalogenAff do
   HA.awaitLoad
-  el <- HA.selectElement "#app"
+  el <- HA.selectElement (QuerySelector "#app")
   maybe (throwError (error "Could not find createroom")) (runUI mane unit) el

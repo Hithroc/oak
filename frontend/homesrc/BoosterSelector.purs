@@ -18,6 +18,8 @@ data BoosterType
   | EquestrianOdysseys
   | HighMagic
   | MarksInTime
+  | DefendersOfEquestria
+  | SeaquestriaAndBeyond
 derive instance eqBoosterType :: Eq BoosterType
 
 instance showBoosterType :: Show BoosterType where
@@ -28,8 +30,10 @@ instance showBoosterType :: Show BoosterType where
   show EquestrianOdysseys = "Equestrian Odysseys"
   show HighMagic = "High Magic"
   show MarksInTime = "Marks in Time"
+  show DefendersOfEquestria = "Defenders of Equestria"
+  show SeaquestriaAndBeyond = "Seaquestria and Beyond"
 
-boosterTypes = [Premiere, CanterlotNights, TheCrystalGames, AbsoluteDiscord, EquestrianOdysseys, HighMagic, MarksInTime]
+boosterTypes = [Premiere, CanterlotNights, TheCrystalGames, AbsoluteDiscord, EquestrianOdysseys, HighMagic, MarksInTime, DefendersOfEquestria, SeaquestriaAndBeyond]
 
 setToLetters :: BoosterType -> String
 setToLetters Premiere           = "pr"
@@ -39,6 +43,8 @@ setToLetters AbsoluteDiscord    = "ad"
 setToLetters EquestrianOdysseys = "eo"
 setToLetters HighMagic          = "hm"
 setToLetters MarksInTime        = "mt"
+setToLetters DefendersOfEquestria = "de"
+setToLetters SeaquestriaAndBeyond = "sb"
 setToLetters _ = "uk" -- Change this later
 
 type BoosterSelectorState
