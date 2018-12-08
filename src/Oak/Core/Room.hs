@@ -86,7 +86,7 @@ data Room
   = Room
   { _roomPlayers :: Map UUID Player
   , _roomBoosters :: [BoosterType]
-  , _roomClosed :: Bool 
+  , _roomClosed :: Bool
   , _roomHost :: UUID
   , _roomDirection :: Direction
   , _roomLastActive :: UTCTime
@@ -100,7 +100,7 @@ roomPlayer uuid = roomPlayers . at uuid . _Just
 
 createRoom :: [BoosterType] -> UTCTime -> Room
 createRoom btype time
-  = Room 
+  = Room
   { _roomPlayers = M.empty
   , _roomBoosters = btype
   , _roomClosed = False
@@ -125,6 +125,7 @@ initEventQueue uuid troom = do
     queue = roomPlayer uuid . playerEventQueue
   case room ^? queue . _Just of
     Just eq -> return eq
+
     Nothing -> do
       eq <- PlayerEventQueue <$> newTQueue
       modifyTVar troom (queue ?~ eq)

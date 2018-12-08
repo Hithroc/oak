@@ -57,6 +57,7 @@ data Expansion
   | SandsOfTime
   | DefendersOfEquestria
   | SeaquestriaAndBeyond
+  | FriendsForever
   deriving (Eq, Ord, Show, Read, Generic)
 deriveSafeCopy 1 'base ''Expansion
 
@@ -146,6 +147,7 @@ data BoosterType
   | MarksInTimeBooster
   | DefendersOfEquestriaBooster
   | SeaquestriaAndBeyondBooster
+  | FriendsForeverBooster
   | CustomBooster (S.Set Card) [(Rarity, Rational)]
   deriving (Eq, Show, Read, Ord)
 deriveSafeCopy 1 'base ''BoosterType
@@ -160,6 +162,7 @@ textToBooster "HighMagic" = Just HighMagicBooster
 textToBooster "MarksInTime" = Just MarksInTimeBooster
 textToBooster "DefendersOfEquestria" = Just DefendersOfEquestriaBooster
 textToBooster "SeaquestriaAndBeyond" = Just SeaquestriaAndBeyondBooster
+textToBooster "FriendsForever" = Just FriendsForeverBooster
 textToBooster _ = Nothing
 
 instance FromJSON BoosterType where
@@ -179,6 +182,7 @@ setToLetters HighMagic          = "hm"
 setToLetters MarksInTime        = "mt"
 setToLetters DefendersOfEquestria = "de"
 setToLetters SeaquestriaAndBeyond = "sb"
+setToLetters FriendsForever = "ff"
 setToLetters _ = "uk" -- Change this later
 
 lettersToSet :: String -> Maybe Expansion
@@ -191,6 +195,7 @@ lettersToSet "hm" = Just HighMagic
 lettersToSet "mt" = Just MarksInTime
 lettersToSet "de" = Just DefendersOfEquestria
 lettersToSet "sb" = Just SeaquestriaAndBeyond
+lettersToSet "ff" = Just FriendsForever
 lettersToSet _ = Nothing
 
 instance FromHttpApiData BoosterType where
@@ -204,6 +209,7 @@ instance FromHttpApiData BoosterType where
     | str == "mt" = Right MarksInTimeBooster
     | str == "de" = Right DefendersOfEquestriaBooster
     | str == "sb" = Right SeaquestriaAndBeyondBooster
+    | str == "ff" = Right FriendsForeverBooster
     | otherwise = Left "Unknown set!"
   parseQueryParam = parseUrlPiece
 
@@ -236,6 +242,7 @@ instance FromJSON Expansion where
   parseJSON (String "GF") = return GenericFixed
   parseJSON (String "DE") = return DefendersOfEquestria
   parseJSON (String "SB") = return SeaquestriaAndBeyond
+  parseJSON (String "FF") = return FriendsForever
   parseJSON (String s) = fail . T.unpack $ "Unknown set: " <> s
   parseJSON _ = mzero
 

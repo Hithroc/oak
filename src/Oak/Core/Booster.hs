@@ -58,7 +58,7 @@ constructBox bt
     let quadrant rar = FrontCommonSeq : FrontCommonSeq : rar : replicate 6 FrontCommonSeq
     return . map regularBooster . concat $ quadrant r : replicate 3 (quadrant UltraRareSeq)
 
-  | bt `elem` [DefendersOfEquestriaBooster, SeaquestriaAndBeyondBooster]
+  | bt `elem` [DefendersOfEquestriaBooster, SeaquestriaAndBeyondBooster, FriendsForeverBooster]
     = do
       let packSeq x = [(x, SuperRareSeq), (False, FrontCommonSeq), (not x, UltraRareSeq), (False, FrontCommonSeq), (False, FrontCommonSeq), (x, SuperRareSeq), (False, FrontCommonSeq), (False, FrontCommonSeq), (False, FrontCommonSeq)]
       return . map (uncurry defendersBooster) . concat . zipWith (flip ($)) (cycle [False, True]) . replicate 4 $ packSeq

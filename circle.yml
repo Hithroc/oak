@@ -1,49 +1,31 @@
-machine:
-  node:
-    version: 9.5.0
-dependencies:
-  cache_directories:
-    - "~/.cabal"
-    - "frontend/output"
-    - "frontend/bower_components"
-    - "frontend/.pulp-cache"
-    - "dist-newstile"
-  pre:
-    - sudo add-apt-repository -y ppa:hvr/ghc
-    - sudo apt-get update
-    - sudo apt-get -y install cabal-install-head
-    - sudo apt-get -y install ghc
-    - npm install -g purescript pulp bower
-  override:
-    - cabal new-build --only-dependencies
-    - bower install:
-        pwd: frontend
-    - pulp build --src-path fake-src:
-        pwd: frontend
-compile:
-  override:
-    - cabal new-build
-    - mkdir dist; pulp browserify -O > dist/app.js:
-        pwd: frontend
-    - rm frontend/output/Main -r
-    - pulp browserify --src-path homesrc -O > dist/home.js:
-        pwd: frontend
-test:
-  override:
-    - echo "You pass."
-
-#deployment:
-#  stage:
-#    branch: master
-#    commands:
-#      - "scp -q -r -P $SSH_DEPLOY_PORT frontend/dist  $SSH_DEPLOY_HOST:stage/frontend/"
-#      - "scp -q -r -P $SSH_DEPLOY_PORT static  $SSH_DEPLOY_HOST:stage/"
-#      - "scp -q -r -P $SSH_DEPLOY_PORT $(stack path --local-install-root)/bin/oak  $SSH_DEPLOY_HOST:oak-stage"
-#      - ssh -p $SSH_DEPLOY_PORT oak@hithroc.org 'sh deploy.sh stage'
-#  live:
-#    branch: production
-#    commands:
-#      - "scp -q -r -P $SSH_DEPLOY_PORT frontend/dist  $SSH_DEPLOY_HOST:live/frontend/"
-#      - "scp -q -r -P $SSH_DEPLOY_PORT static  $SSH_DEPLOY_HOST:live/"
-#      - "scp -q -r -P $SSH_DEPLOY_PORT $(stack path --local-install-root)/bin/oak  $SSH_DEPLOY_HOST:oak-live"
-#      - ssh -p $SSH_DEPLOY_PORT oak@hithroc.org 'sh deploy.sh live'
+version: 2.1
+jobs:
+  build:
+    machine: true
+    steps:
+      - checkout
+      - run: sudo add-apt-repository -y ppa:hvr/ghc
+      - run: sudo apt-get update
+      - run: sudo apt-get -y install cabal-install-head
+      - run: sudo apt-get -y install ghc-8.6.2
+      - run: sudo ln -s /opt/ghc/bin/ghc-8.6.2 /bin/ghc
+      - restore_cache:
+          name: Restore cached dependencies
+          keys:
+            - oak-v1{{ checksum "oak.cabal" }}
+      - run:
+          name: Update Hackage
+          command: /opt/cabal/bin/cabal new-update
+      - run:
+          name: Build
+          command: /opt/cabal/bin/cabal new-build
+      - save_cache:
+          name: Cache dependencies
+          key: oak-v1{{ checksum "oak.cabal" }}
+          paths:
+            - ./dist/
+            - ./dist-newstyle/
+            - ~/.cabal/
+      - store_artifacts:
+          path: ./dist-newstyle/build/x86_64-linux/ghc-8.6.2/oak-1.3.1.0/x/oak/build/oak/oak
+          destination: oak
